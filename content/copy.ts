@@ -15,18 +15,26 @@ export const CHEF_BIO = [
 
 /**
  * Tool icons shown as an avatar group on the row, each with the tooltip the
- * design gives it (extracted from the Tooltip instances in 1:189).
+ * design gives it.
  *
- * TODO: six icons, five labels in the file. The last is unlabelled until
- * Praise says what it is -- better a missing tooltip than an invented one.
+ * MAPPED BY ARTWORK, NOT BY INDEX. The labels the Figma extraction produced sat
+ * one tile away from the icons they described -- Shopify's bag read "Interface
+ * design", Figma's mark read nothing at all. The order below is the order the
+ * icons paint, left to right, and it is the order `normalize-assets.mjs` fixes:
+ *
+ *   tool-0 Shopify   tool-1 Weave   tool-2 Claude
+ *   tool-3 Framer    tool-4 Jitter  tool-5 Figma
+ *
+ * Confirmed against the rendered tiles, so a label can only drift again if the
+ * artwork is re-exported without re-running the normaliser.
  */
 export const CHEF_TOOLS: { src: string; label?: string }[] = [
-  { src: "/assets/tools/tool-0.webp", label: "Interface design & components" },
-  { src: "/assets/tools/tool-1.webp", label: "Automation systems & Code" },
-  { src: "/assets/tools/tool-2.webp", label: "Marketing websites." },
-  { src: "/assets/tools/tool-3.webp", label: "AI art direction" },
-  { src: "/assets/tools/tool-4.webp", label: "Storefront & Retention automations" },
-  { src: "/assets/tools/tool-5.webp" },
+  { src: "/assets/tools/tool-0.webp", label: "Storefront & Retention" },
+  { src: "/assets/tools/tool-1.webp", label: "AI powered Art Direction" },
+  { src: "/assets/tools/tool-2.webp", label: "Code & Automation systems" },
+  { src: "/assets/tools/tool-3.webp", label: "Marketing Websites" },
+  { src: "/assets/tools/tool-4.webp", label: "Motion Design" },
+  { src: "/assets/tools/tool-5.webp", label: "Interface Design & components" },
 ];
 
 /** Teaser shown on the collapsed row. Full content lands in a later version. */

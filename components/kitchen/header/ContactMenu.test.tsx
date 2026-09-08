@@ -50,8 +50,13 @@ describe("ContactMenu", () => {
     }
   });
 
-  it("names the wallet in the accessible label, since the text is truncated", () => {
+  it("names itself plainly, and no longer carries the wallet", () => {
+    // The truncated wallet used to sit beside "Contact me", which is why the
+    // accessible name had to spell it out. Praise removed it from the button,
+    // so the name is now just the action.
     render(<ContactMenu />);
-    expect(screen.getByRole("button")).toHaveAccessibleName(/FbMn\.\.\.zhea/);
+    const button = screen.getByRole("button");
+    expect(button).toHaveAccessibleName("Contact Praise Fabilola");
+    expect(button.textContent).not.toMatch(/FbMn/);
   });
 });

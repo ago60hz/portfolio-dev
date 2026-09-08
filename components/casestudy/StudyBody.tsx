@@ -1,0 +1,112 @@
+import { MaskWords } from "@/components/motion/MaskWords";
+import { Reveal } from "@/components/motion/Reveal";
+import type { Block } from "@/content/case-studies";
+import { StudyImage } from "./StudyImage";
+import { StudyLoop } from "./StudyLoop";
+import { VimeoEmbed } from "./VimeoEmbed";
+
+/** Doto sits 4% tight at every size in the design; Satoshi sits at 2%. */
+const EYEBROW = "font-doto text-fine tracking-[-0.04em] uppercase text-kitchen-brown-deep";
+
+function One({ block }: { block: Block }) {
+  switch (block.type) {
+    case "heading":
+      return (
+        // scroll-mt keeps a rail jump from tucking the heading under the header.
+        <h2 id={block.id} className="scroll-mt-6 pt-6">
+          <span className={`${EYEBROW} block`}>{block.railLabel}</span>
+          {/* The claim rises out from under the eyebrow, a word at a time. */}
+          <MaskWords
+            as="div"
+            text={block.text}
+            className="mt-2 block text-lead font-medium text-balance text-kitchen-ink"
+          />
+        </h2>
+      );
+
+    case "subheading":
+      return (
+        // Negative bottom margin against the 30 stack gap: a heading belongs to
+        // the paragraph beneath it, so it sits closer to what it introduces
+        // (12) than to what it follows (38). Even spacing reads as a floating
+        // line that could belong to either.
+        <h3 className="-mb-[18px] pt-2 text-body font-medium text-balance text-kitchen-ink">
+          {block.text}
+        </h3>
+      );
+
+    case "prose":
+      return (
+        <p className="text-body leading-prose text-pretty text-kitchen-ink">{block.text}</p>
+      );
+
+    case "quote":
+      return (
+        <blockquote className="font-gochi text-lead leading-[1.18] text-pretty text-kitchen-brown-deep">
+          {block.text}
+          {block.attribution && (
+            <footer className={`${EYEBROW} mt-2 normal-case`}>{block.attribution}</footer>
+          )}
+        </blockquote>
+      );
+
+    case "metrics":
+      return (
+        <dl className="grid grid-cols-1 gap-x-2 gap-y-4 sm:grid-cols-2">
+          {block.items.map((m) => (
+            <div key={m.label} className="flex flex-col gap-2">
+              <dt className={EYEBROW}>{m.label}</dt>
+              <dd className="text-title font-medium text-kitchen-ink">{m.value}</dd>
+            </div>
+          ))}
+        </dl>
+      );
+
+    case "image":
+      return <StudyImage media={block.media} />;
+
+    case "gallery":
+      return (
+        <div className="grid grid-cols-1 gap-[30px] sm:grid-cols-2">
+          {block.items.map((m) => (
+            <StudyImage key={m.src} media={m} />
+          ))}
+        </div>
+      );
+
+    case "loop":
+      return <StudyLoop media={block.media} />;
+
+    case "vimeo":
+      return <VimeoEmbed {...block} />;
+  }
+}
+
+/**
+ * The article body.
+ *
+ * 30 between blocks is the gap the design opens between the masthead rule and
+ * the first image (35:300), reused as the whole page's rhythm so nothing needs
+ * a bespoke margin.
+ *
+ * Each block arrives as it is scrolled to. The Reveal wrapper is a plain div
+ * in the flex column, so the 30 gap is unaffected -- it is on the parent.
+ */
+export function StudyBody({ blocks }: { blocks: Block[] }) {
+  return (
+    <div className="flex flex-col gap-[30px]">
+      {blocks.map((block, i) =>
+        // A heading animates its own words, so it does not also want the
+        // block-level arrival on top -- two entrances on one element read as a
+        // stutter rather than as emphasis.
+        block.type === "heading" ? (
+          <One key={i} block={block} />
+        ) : (
+          <Reveal key={i} on="view" kind="arrive">
+            <One block={block} />
+          </Reveal>
+        ),
+      )}
+    </div>
+  );
+}

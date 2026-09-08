@@ -13,6 +13,7 @@ class Coil extends THREE.Curve<THREE.Vector3> {
     private turns: number,
     private pitch: number,
     private lead: number,
+    private leadLen: number,
   ) {
     super()
   }
@@ -20,23 +21,37 @@ class Coil extends THREE.Curve<THREE.Vector3> {
     // First slice is a straight lead-in, then it winds.
     if (t < this.lead) {
       const k = t / this.lead
-      return target.set(0, -k * 0.55, 0)
+      return target.set(0, -k * this.leadLen, 0)
     }
     const u = (t - this.lead) / (1 - this.lead)
     const a = u * Math.PI * 2 * this.turns
-    // Ease the radius open so the cord doesn't snap into the coil.
-    const r = this.radius * Math.min(1, u * 5)
-    return target.set(Math.sin(a) * r, -0.55 - u * this.pitch * this.turns, Math.cos(a) * r * 0.55)
+    // Ease the radius open over the first turn so the straight run flows into
+    // the helix instead of kinking into it.
+    const r = this.radius * Math.min(1, u * this.turns)
+    return target.set(
+      Math.sin(a) * r,
+      -this.leadLen - u * this.pitch * this.turns,
+      // Squashed in Z so the coil reads as a cord seen face-on, not a spring.
+      Math.cos(a) * r * 0.55,
+    )
   }
 }
 
 export function Cable() {
-  const { collarW, collarH, collarD, coilR, coilTurns, coilPitch, tubeR } = D.cable
+  const { collarW, collarH, collarD, coilR, coilTurns, coilPitch, tubeR, lead } = D.cable
   const plateBottom = -D.plate.h / 2
 
   const geo = useMemo(
-    () => new THREE.TubeGeometry(new Coil(coilR, coilTurns, coilPitch, 0.12), 220, tubeR, 12, false),
-    [coilR, coilTurns, coilPitch, tubeR],
+    () =>
+      new THREE.TubeGeometry(
+        new Coil(coilR, coilTurns, coilPitch, 0.1, lead),
+        // Segment count scales with turns — too few and the tube facets.
+        Math.round(48 * coilTurns),
+        tubeR,
+        14,
+        false,
+      ),
+    [coilR, coilTurns, coilPitch, tubeR, lead],
   )
 
   const rubber = useMemo(

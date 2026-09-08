@@ -120,14 +120,42 @@ inset white highlight.
 | testimonial | row 3, left 91, top 24 | same | opens Comments |
 | CHEF WAS CUTE | band below row 3, left 868, 200.069 × 44.313 | red, 2px solid border, Danfo lime | cycles the 3 chef photos |
 
-### Radio
-Praise placed it **bottom-left of the band under the third shelf** (~left 16,
-top 750, ~124 × 130) with its cable trailing off. **Not currently mounted** — it
-was audible on load, which also breaks the "nothing plays before a gesture"
-gate. `components/kitchen/radio/RadioSlot.tsx` was removed for now; note that
-importing `@ijodisco/radio-3d` drags the package's raw TS into our `tsc` program
-regardless of the tsconfig `exclude`, so it currently fails our typecheck on a
-pre-existing error in `RadioBody.tsx` (`cloth` is undefined).
+### Radio and wall gallery (`90:296`)
+
+The gallery is 481.321 x 115.471 at Window (297.679, 740.560) -- centred, 298 of
+margin each side -- inside the band under the third shelf. Contents, gallery-local:
+
+| Node | What | x, y | Size | Note |
+|---|---|---|---|---|
+| `90:297` | red mesh | 0, 0 | 481.32 x 115.47 | lattice, 22.866 pitch, 1.143 weight, `#e50305` |
+| `90:346` | radio | -6.68, 0.44 | 125 x 151 | a still in Figma; the live component in the build |
+| `90:347` | photo | 103.32, 29.72 | 73.19² | rot 3.97, 1.143 `#fafafa` border |
+| `90:349` | photo | 184.32, 20.44 | 68.60² | |
+| `90:348` | photo | 262.32, 6.44 | 72.67² | rot -3.51 |
+| `97:366` | "10.12" card | 205.09, 76.44 | 55 x 31 | |
+| `90:350` | ONION poster | 344.32, 12.44 | 68.60² | `#755a3d` ground |
+| `97:368` | photo | 420.32, 29.44 | 73.19² | **rot 176.03** -- hung upside down |
+| `86:238` | CHEF WAS CUTE | 253.32, 89.44 | 184 x 36.88 | the vibe sticker, now inside the gallery |
+
+The radio runs 8 past the Window floor: that is the cable, and it is clipped by
+`.kitchen-scene`, not scrolled.
+
+**Do not take these numbers off the Figma MCP.** Its geometry for this frame put
+`97:368` 68 units right of where it is and missed its rotation entirely. The
+values above are from the REST dump.
+
+### Sidebar sticker stack (`86:224`)
+
+339 x 62, between the filter chips and the accordions. Two cards drawn, the same
+component at two depths: `86:225` front, 210 x 47.84 at (64.77, 4), +1 degree,
+radius 6.69; `78:237` behind, 173 wide (0.824 of it) at (82.33, 32.15), -1
+degree. Copy is black on the purple card -- its purple text stroke is the ground
+colour, so it only fattens the glyph. Photo is 51 x 48.71 at (162.76, 2.84),
+inside the card, not bleeding past it as the kitchen note's does.
+
+The `work_row` frames carry **no poster nodes** any more -- the revenue and
+testimonial stickers were removed from the shelves, and the Clients &
+Achievements accordion went with them.
 
 ## Sidebar (`1:374`)
 
@@ -163,3 +191,105 @@ generics for now; export the glyphs from `3:108` and each is a one-line swap in
 - **Wallet address** — only `FbMn...zhea` was legible in the export. `content/contact.ts` carries that fragment; `truncateAddress` handles a full string when it lands.
 - **Wall tile vertical seam** — deferred by Praise. Recurs down the wall; the fix is a re-exported pattern cell or an offset-and-feather heal pass.
 - **Clients & Achievements / Comments bodies** — no expanded design exists; both are data-driven and a data edit away.
+
+## Case study (`25:664` "Homepage/ case_study")
+
+Pulled by REST on 2026-09-02 17:34, into the same `file.json` as everything
+above. **The exact values live in `design/case-study.tokens.json`**, regenerated
+by `scripts/case-study-tokens.mjs` and asserted by
+`tests/e2e/case-study-fidelity.spec.ts`. What follows is the prose reading of it
+-- go to the JSON for a number, come here for what the number means.
+
+> A render of this frame from 16:55 the same day already disagreed with the file
+> by 17:34 -- the study breadcrumb chip had been recoloured. **Do not take values
+> off a screenshot**, even one you generated yourself an hour ago.
+
+The frame keeps the Sidebar (`25:847`) untouched and replaces the Window's
+contents. Same shell, same chrome, different cargo.
+
+### Surface
+
+`#c1b2a3` (`kitchen-tan`) at 1077x884, 1px ink border with a **2px bottom** and
+radius 6 -- byte-identical chrome to the kitchen Window. The warm greige is
+doing real work: a long read on `#fafafa` inside a purple frame glares.
+
+That 1px/2px-bottom border recurs on the brand avatar (`26:236`) and the media
+holder (`35:300`). It is the house edge, not a one-off.
+
+### Header (`25:667`)
+
+38 tall, `pl-4 pr-8 py-8`, 1px ink rule beneath. Left is a breadcrumb, right is
+the **same split Contact button as the kitchen** -- reuse `ContactMenu`, do not
+rebuild it.
+
+Breadcrumb, gap 4: a 16 chevron-left back to `/`, then two chips at radius 8
+with the sidebar's asymmetric `pt-2 pr-6 pb-3 pl-6` optical padding:
+
+| Chip | Fill | Border | Text |
+|---|---|---|---|
+| the work's filter | none | 1px ink | Satoshi 500 14, ink |
+| the study | `kitchen-brown` | none | Satoshi 500 14, **`kitchen-tan`** |
+
+The `/` between them is Satoshi **300** -- lighter than either label, so the
+separator recedes. The folder icon inside both chips is `visible: false`; it is
+in the file and is not drawn.
+
+### Column (`35:267`)
+
+**519 wide, centred** -- 279 of margin either side of 1077. Ends in a **dashed**
+(`2,1`) `kitchen-brown` rule at **20% opacity**, bottom edge only
+(`individualStrokeWeights` is `{top:0,right:0,bottom:1,left:0}` -- the uniform
+`strokeWeight: 1` alone would have drawn a box). 40 of padding above it.
+
+Masthead (`35:244`), stacked at gap 21: a 24 avatar + `Client | Sector` in Doto
+800 14; the title in Satoshi 500 **24/1.35**; the hook quote in Gochi Hand 16,
+`kitchen-brown`. Then a 2-col grid (`35:266`), column gap 8, row gap 16, cell
+gap 8 -- Doto 800 12 brown label over Satoshi 500 14 ink value, four cells:
+Role, Client, Scope, Timeline.
+
+Media (`35:300`) opens 30 below the rule: full column width, radius 2, 1px
+brown border. Figma crops its placeholder; **the brief overrides that** -- images
+keep their own aspect ratio at full column width.
+
+### Progress rail (`35:338`)
+
+At `x 23, y 106`, 112 wide -- floated in the left margin, not in the column.
+Ticks (`35:313`) are 1px `kitchen-brown` lines on an **11 pitch**, labels in
+Doto 800 12 brown starting at `x 67`, vertically centred on their own tick.
+
+Widths encode the structure, and the rule is derived (not hardcoded) in
+`case-study-tokens.mjs`:
+
+- **base 10** -- one ordinary tick
+- **section 29** -- a labelled heading
+- **first 40** -- the opening section, longest of all
+- a **taper** under the first section only: `36, 29, 26, 19, 16, 13, 10`
+
+A section tick is one **wider than the tick before it**. That distinction
+matters: "wider than base" would read the whole opening taper as eight sections.
+
+Praise's sketch draws 17 ticks with sections at indices 0, 8 and 16 -- evenly
+spread, because a sketch has no real document behind it. In the build the count
+follows the available rail height at the 11 pitch, and each section sits at the
+tick matching its relative offset down the article, so the rail is a scale model
+of the page. Confirmed independently: the three labels sit at `y` 106/194/282,
+which is exactly `tickY - 4` for ticks 0, 8 and 16.
+
+### The sand surface (`51:1569`)
+
+A second case-study frame, pulled 2026-09-03. Structurally identical to
+`25:664` -- same 249 nodes, same geometry, same type -- and differing in exactly
+13 fills and strokes, every one of them `#9770ff` becoming `#c1b2a3`:
+
+| What | |
+|---|---|
+| the page frame | ground behind the whole layout |
+| Sidebar `Container` | the panel fill |
+| six `Shape` rectangles | the chef tool icon grounds, hence the `on-sand` set |
+| `Comments` label | purple-on-black becomes sand-on-black |
+| three Avatars + one Icon | stroke only |
+
+Homepage `1:190` is **unchanged and still fully purple** (24 purple, 0 sand),
+which is deliberate: the room repaints only while you are reading a case study.
+That is why `kitchen-surface` exists as a role token and why the swap is one
+variable rather than a second set of components.

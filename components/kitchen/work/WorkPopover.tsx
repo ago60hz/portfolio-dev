@@ -1,55 +1,11 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
 import { motion } from "motion/react";
-import type { Cta, Work } from "@/content/works";
+import { SPRING, T } from "@/lib/motion";
+import type { Work } from "@/content/works";
+import { Ctas } from "./WorkCtas";
 import { HotTag } from "./HotTag";
-
-/** The pill row at (8u, 41u), right-aligned. Colours per the hover board. */
-const CTA_PILL =
-  "flex items-center justify-center rounded-full whitespace-nowrap text-fine leading-none " +
-  "transition-transform duration-(--duration-press) active:scale-[0.97] " +
-  "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kitchen-ink";
-
-const PILL_BOX = {
-  height: "calc(18 * var(--u))",
-  paddingInline: "calc(8 * var(--u))",
-} as const;
-
-function Ctas({ cta, slug }: { cta: Cta; slug: string }) {
-  if (cta === "coming-soon") {
-    return (
-      <span
-        className={`${CTA_PILL} bg-kitchen-brown text-kitchen-paper`}
-        style={PILL_BOX}
-      >
-        coming soon
-      </span>
-    );
-  }
-
-  return (
-    <>
-      {cta === "more-view" && (
-        <Link
-          href={`/work/${slug}`}
-          className={`${CTA_PILL} bg-kitchen-lime text-kitchen-ink`}
-          style={PILL_BOX}
-        >
-          more
-        </Link>
-      )}
-      <Link
-        href={`/work/${slug}`}
-        className={`${CTA_PILL} bg-kitchen-ink text-kitchen-paper`}
-        style={PILL_BOX}
-      >
-        view
-      </Link>
-    </>
-  );
-}
 
 /**
  * The hover card (1:525).
@@ -58,42 +14,65 @@ function Ctas({ cta, slug }: { cta: Cta; slug: string }) {
  * deliberately overhangs both sides of the can it belongs to. Anchored at 19u
  * from the card top, which puts it across the label rather than above it.
  *
- * Spring rather than tween: hovering along a shelf interrupts the previous
- * card's animation constantly, and a spring redirects from its current
- * velocity where a tween would restart from zero.
+ * It hangs. The brief asks for "when you drop a hanging ID card, it has some
+ * wiggle before it damps out" -- follow-through and overlapping action.
+ *
+ * The pin is real geometry, not an invented anchor. Node 1:525 carries no rope;
+ * the hanger is the HOT ribbon, 1:526, a 19-wide frame at x-offset 106 in a 231
+ * card. 106 + 19/2 = 115.5, and 231/2 = 115.5 -- the ribbon is dead centre. So
+ * the transform origin is the top centre, and everything below swings from it.
+ *
+ * Spring rather than tween, for two reasons: hovering along a shelf interrupts
+ * the previous card constantly, and a spring redirects from its current
+ * velocity where a tween restarts from zero; and a spring on `rotate` IS a
+ * damped oscillation, so the wiggle is the physics rather than a keyframed
+ * impression of it.
+ *
+ * `scaleY` from the same pin is the mask-in the brief allows for: the card
+ * unrolls downward from the ribbon instead of appearing whole.
  */
 export function WorkPopover({ work }: { work: Work }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: -6, scale: 0.96 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, y: -4, scale: 0.98 }}
-      transition={{ type: "spring", stiffness: 520, damping: 24, mass: 0.7 }}
+      initial={{ opacity: 0, y: -14, rotate: -4, scaleY: 0.9 }}
+      animate={{ opacity: 1, y: 0, rotate: 0, scaleY: 1 }}
+      // The exit does not swing. A card being taken away has no reason to
+      // settle, and letting the spring play out on the way off screen leaves
+      // it hanging around for most of a second while the pointer has already
+      // moved to the next can.
+      exit={{ opacity: 0, y: -8, rotate: -2, scaleY: 0.94, transition: T.exit }}
+      transition={SPRING.card}
+      data-work-popover
       className="pointer-events-none absolute z-30"
       style={{
         left: "calc(-26 * var(--u))",
         top: "calc(19 * var(--u))",
         width: "calc(231 * var(--u))",
+        // The ribbon's pin. Everything above swings about it.
+        transformOrigin: "50% 0",
       }}
     >
       <HotTag />
 
       {/* The red sits behind everything and shows as the 2u top edge.
           It starts 22u down because that band belongs to the HOT ribbon, which
-          pokes up above the card rather than sitting on top of it. */}
+          pokes up above the card rather than sitting on top of it.
+
+          `minHeight` rather than `height`: 69u is the resting size, but a longer
+          blurb (The Faraway runs to four lines) needs the card to grow instead
+          of `overflow-hidden` clipping the CTA row off the bottom. The 2u red
+          top edge is now a paddingTop so it survives that growth. */}
       <div
-        className="relative overflow-hidden bg-kitchen-red backdrop-blur-[2px]"
+        className="relative flex overflow-hidden bg-kitchen-red backdrop-blur-[2px]"
         style={{
           marginTop: "calc(22 * var(--u))",
-          height: "calc(69 * var(--u))",
+          minHeight: "calc(69 * var(--u))",
+          paddingTop: "calc(2 * var(--u))",
           borderRadius:
             "var(--radius-window) var(--radius-window) calc(2 * var(--u)) calc(2 * var(--u))",
         }}
       >
-        <div
-          className="absolute inset-x-0 bottom-0 flex"
-          style={{ top: "calc(2 * var(--u))" }}
-        >
+        <div className="flex flex-1">
           {/* Brand swatch */}
           <div
             className="flex shrink-0 items-center justify-center bg-kitchen-lime"
@@ -130,7 +109,7 @@ export function WorkPopover({ work }: { work: Work }) {
               className="pointer-events-auto flex items-center justify-end"
               style={{ gap: "calc(4 * var(--u))" }}
             >
-              <Ctas cta={work.cta} slug={work.slug} />
+              <Ctas work={work} />
             </div>
           </div>
         </div>

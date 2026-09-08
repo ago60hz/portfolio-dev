@@ -50,6 +50,7 @@ const YT_ENDED = 0
 const YT_PLAYING = 1
 const YT_PAUSED = 2
 const YT_BUFFERING = 3
+const YT_CUED = 5
 
 export class YouTubeProvider extends BaseProvider {
   readonly kind = 'youtube' as const
@@ -60,6 +61,8 @@ export class YouTubeProvider extends BaseProvider {
   private level = 0
   private levelTimer: ReturnType<typeof setInterval> | null = null
   private destroyed = false
+  /** play() asked for playback while a cue was still in flight. */
+  private wantsPlay = false
 
   constructor(opts: { onEnded?: () => void; onError?: (code: number) => void } = {}) {
     super()
@@ -85,6 +88,9 @@ export class YouTubeProvider extends BaseProvider {
           disablekb: 1,
           modestbranding: 1,
           rel: 0,
+          cc_load_policy: 0, // captions off by default
+          iv_load_policy: 3, // no annotation overlays
+
           enablejsapi: 1,
           origin: window.location.origin,
         },
@@ -108,7 +114,16 @@ export class YouTubeProvider extends BaseProvider {
 
   private handleState(code: number): void {
     switch (code) {
+      case YT_CUED:
+        // cuePlaylist/cueVideoById finish asynchronously. A play() issued
+        // before this point was dropped by the player, so honour it now —
+        // this is what makes next/prev start playing instead of sitting
+        // cued, while still never auto-playing on load (where nothing
+        // called play() in the first place).
+        if (this.wantsPlay) this.player?.playVideo()
+        break
       case YT_PLAYING:
+        this.wantsPlay = false
         this.title = this.player?.getVideoData()?.title ?? this.title
         this.syncTotal()
         this.emit('playing')
@@ -163,10 +178,12 @@ export class YouTubeProvider extends BaseProvider {
   }
 
   play(): void {
+    this.wantsPlay = true
     this.player?.playVideo()
   }
 
   pause(): void {
+    this.wantsPlay = false
     this.player?.pauseVideo()
   }
 

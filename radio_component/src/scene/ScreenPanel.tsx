@@ -1,7 +1,7 @@
-import { useEffect, useRef } from 'react'
+import { useRef } from 'react'
 import { Html } from '@react-three/drei'
 import { D } from './dims'
-import type { RadioState, TrackMeta } from '../core/types'
+import type { RadioState } from '../core/types'
 
 /**
  * The LED screen.
@@ -12,66 +12,56 @@ import type { RadioState, TrackMeta } from '../core/types'
  * which tracks the mesh in perspective. The camera stays near front-on and
  * parallax is capped, which is what keeps the illusion intact.
  *
- * Layout note: the readout strip sits BELOW the video, never over it. YouTube's
- * policies discourage obscuring the player, and a non-overlapping status strip
- * reads as deliberate industrial design rather than a compromise.
+ * The panel shows the video and nothing else — no readout strip, no caption
+ * layer, nothing drawn over the player. That keeps it clear of YouTube's
+ * "don't obscure the player" guidance and makes the screen read as a physical
+ * display rather than a UI surface.
  */
 
-/** 1 world unit = 100 CSS px, matching the reference measurement scale. */
+/**
+ * D.screen is the single source of truth for the display's geometry. There is
+ * no companion WebGL slab any more: this element carries the screen's own
+ * black face, so there is nothing for it to drift against.
+ *
+ * PX is just the working resolution of the DOM layer: the markup is laid out
+ * at 100 CSS px per world unit so text and the video stay crisp, then scaled
+ * back down to world size.
+ */
 const PX = 100
 const W = D.screen.w * PX
 const H = D.screen.h * PX
-const STRIP_H = Math.round(H * 0.12)
-const VIDEO_H = H - STRIP_H
+
+/**
+ * drei's <Html transform> applies a fixed normalisation rather than mapping
+ * 1 CSS px to 1 world unit at scale=1. Measured against a known-size mesh and
+ * stable across both cameras this scene has used (fov 30 @ 13.5, fov 15 @
+ * 37.2), so it holds as a constant.
+ *
+ * Exactness matters much less now than it did: with the screen's black face
+ * living on this element, there is no second object for it to disagree with —
+ * this only sets how large the panel reads on the chassis.
+ */
+const HTML_UNITS_PER_PX = 41.7
+const HTML_SCALE = HTML_UNITS_PER_PX / PX
+const VIDEO_H = H
 /** 16:9 height for W, so the video covers the box and crops rather than letterboxes. */
 const VIDEO_NATIVE_H = Math.round(W / (16 / 9))
-const BAR_COUNT = 14
 
 type Props = {
   state: RadioState
-  meta: TrackMeta
-  levelRef: React.RefObject<number>
   setHost: (el: HTMLDivElement | null) => void
 }
 
-export function ScreenPanel({ state, meta, levelRef, setHost }: Props) {
-  const barsRef = useRef<HTMLDivElement>(null)
+export function ScreenPanel({ state, setHost }: Props) {
   const videoWrapRef = useRef<HTMLDivElement>(null)
   const on = state.power !== 'off'
   const booting = state.power === 'booting'
 
-  // Bars are driven straight from the level ref — routing this through React
-  // state would re-render the whole tree 60 times a second.
-  useEffect(() => {
-    const el = barsRef.current
-    if (!el) return
-    const bars = Array.from(el.children) as HTMLElement[]
-    const phase = bars.map((_, i) => i * 0.7)
-    let raf = 0
-    const tick = () => {
-      const level = on ? levelRef.current : 0
-      const t = performance.now() / 240
-      for (let i = 0; i < bars.length; i++) {
-        const wobble = 0.55 + 0.45 * Math.sin(t + phase[i])
-        const hgt = Math.max(0.06, level * wobble)
-        bars[i].style.transform = `scaleY(${hgt.toFixed(3)})`
-      }
-      raf = requestAnimationFrame(tick)
-    }
-    raf = requestAnimationFrame(tick)
-    return () => cancelAnimationFrame(raf)
-  }, [on, levelRef])
-
-  const title = state.notice ?? (booting ? 'TUNING…' : meta.title || 'DISCO DISCO')
 
   return (
     <Html
       transform
-      // Measured empirically against this camera (fov 30°, dist ~13.5): drei's
-      // Html transform does not map 1 css-px : 1 world-unit at scale=1 the way
-      // its docs implied — scale=1 rendered ~192x too big. 0.4 is the derived
-      // and measured-consistent factor for this scene's camera and screen size.
-      scale={0.4}
+      scale={HTML_SCALE}
       position={[0, D.screen.y, D.plate.d / 2 + D.screen.protrude + 0.006]}
       style={{ pointerEvents: 'none' }}
       zIndexRange={[10, 0]}
@@ -80,9 +70,15 @@ export function ScreenPanel({ state, meta, levelRef, setHost }: Props) {
         style={{
           width: W,
           height: H,
-          background: '#05060700',
+          // This element IS the screen — its own black face, not a layer over
+          // a WebGL slab. Nothing behind it to drift against.
+          background: '#111210',
+          borderRadius: 3,
           overflow: 'hidden',
           position: 'relative',
+          // Stands the panel a little proud of the chassis, the job the 3D
+          // slab used to do, without a second object to keep aligned.
+          boxShadow: '0 1.5px 3px rgba(0,0,0,.45), 0 0 0 0.5px rgba(0,0,0,.35)',
           fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace',
           userSelect: 'none',
         }}
@@ -93,7 +89,7 @@ export function ScreenPanel({ state, meta, levelRef, setHost }: Props) {
           ref={videoWrapRef}
           style={{
             position: 'absolute',
-            inset: `0 0 ${STRIP_H}px 0`,
+            inset: 0,
             height: VIDEO_H,
             overflow: 'hidden',
             background: '#000',
@@ -117,64 +113,21 @@ export function ScreenPanel({ state, meta, levelRef, setHost }: Props) {
         <div
           style={{
             position: 'absolute',
-            inset: `0 0 ${STRIP_H}px 0`,
+            inset: 0,
+            // Nearly flat on purpose. A wider gradient reads as a seam
+            // across the panel at render size rather than as glass.
             background:
-              'linear-gradient(160deg,#171b1e 0%,#0a0c0d 42%,#050607 100%)',
+              'linear-gradient(160deg,#141613 0%,#111210 55%,#0e0f0d 100%)',
             opacity: on && !booting ? 0 : 1,
             transition: 'opacity 420ms ease',
             animation: booting ? 'ijo-flicker 140ms steps(2) infinite' : 'none',
           }}
         />
 
-        {/* Readout strip — below the video, never over it. */}
-        <div
-          style={{
-            position: 'absolute',
-            left: 0,
-            right: 0,
-            bottom: 0,
-            height: STRIP_H,
-            background: '#070809',
-            borderTop: '1px solid #1b1f22',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 4,
-            padding: '0 4px',
-            color: on ? '#ffb347' : '#2a2d30',
-            transition: 'color 420ms ease',
-          }}
-        >
-          <span
-            style={{
-              fontSize: 7,
-              letterSpacing: 0.4,
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              flex: 1,
-              textShadow: on ? '0 0 4px rgba(255,179,71,.55)' : 'none',
-            }}
-          >
-            {on ? title : ''}
-          </span>
-          <div
-            ref={barsRef}
-            style={{ display: 'flex', alignItems: 'flex-end', gap: 1.5, height: STRIP_H - 5 }}
-          >
-            {Array.from({ length: BAR_COUNT }, (_, i) => (
-              <div
-                key={i}
-                style={{
-                  width: 2,
-                  height: '100%',
-                  transformOrigin: 'bottom',
-                  background: on ? '#ffb347' : '#232629',
-                  transform: 'scaleY(0.06)',
-                }}
-              />
-            ))}
-          </div>
-        </div>
+        {/* No readout strip and no caption layer: the panel shows the video
+            and nothing else, so the screen reads as a physical display rather
+            than a UI surface. Track title is still exposed to assistive tech
+            via the live region in Radio3D. */}
 
         <style>{`@keyframes ijo-flicker{0%{opacity:.82}50%{opacity:1}100%{opacity:.9}}`}</style>
       </div>

@@ -5,7 +5,7 @@ const ZONES = ["WAT", "CET", "ET"];
 export function Bio() {
   return (
     <div className="flex w-full shrink-0 flex-col gap-4 border-b border-kitchen-ink p-3">
-      <p className="text-body text-pretty">
+      <p className="text-body font-medium text-pretty">
         <span className="underline decoration-kitchen-red decoration-[0.1em] underline-offset-2">
           Founding Designer
         </span>{" "}
@@ -13,7 +13,7 @@ export function Bio() {
       </p>
 
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="flex items-center gap-1 text-body">
+        <span className="flex items-center gap-1 text-body font-medium">
           <Globe aria-hidden className="size-4 shrink-0" />
           Lagos, Nigeria (Remote)
         </span>

@@ -16,13 +16,25 @@ import { Garnish } from "./Garnish";
  * The base hangs 1u below the row (Figma puts it at y223 in a 230 row), which
  * is what makes consecutive rows read as one continuous run of shelving.
  */
+/**
+ * Cans per shelf, passed down rather than declared here.
+ *
+ * It is the same number KitchenWindow used to slice WORKS, and the two must
+ * agree: `index * columns + i` is the can's position across the WHOLE grid,
+ * which is what decides the side a filtered-out can leaves by. Two copies of
+ * the number would disagree the first time the phone frame changed one.
+ */
+
 export function Shelf({
   works,
   index,
+  columns,
   children,
 }: {
   works: Work[];
   index: number;
+  /** Cans per shelf at this width -- 3 on the design frame, 2 on the phone. */
+  columns: number;
   /** Stickers that belong to this row, positioned against it. */
   children?: React.ReactNode;
 }) {
@@ -32,7 +44,7 @@ export function Shelf({
       style={{ height: "var(--row-h)" }}
       aria-label={`Shelf ${index + 1}`}
     >
-      <Garnish shelfIndex={index} />
+      <Garnish shelfIndex={index} columns={columns} />
 
       {/* Wooden front */}
       <div
@@ -41,14 +53,21 @@ export function Shelf({
         style={{ bottom: "var(--shelf-base-bottom)" }}
       />
 
-      {/* Cans rest 9u above the row floor, so only the glass lip crosses them. */}
+      {/* Cans rest 9u above the row floor, so only the glass lip crosses them.
+
+          pointer-events-none on the grid, auto on each can: the grid is a
+          full-width box and the garnishes sit underneath it, so as a solid
+          target it swallowed every hover meant for a chilli or an onion. Only
+          the cans themselves should be able to take a pointer. */}
       <ul
-        className="can-grid absolute inset-x-0 z-30 items-end"
+        className="can-grid pointer-events-none absolute inset-x-0 z-30 items-end"
         style={{ bottom: "var(--can-lift)" }}
       >
-        {works.map((w) => (
+        {works.map((w, i) => (
           <li key={w.slug} className="flex justify-center">
-            <WorkCan work={w} />
+            {/* Position across the whole grid, not just this row: it is what
+                decides which side a dismissed can leaves by. */}
+            <WorkCan work={w} index={index * columns + i} columns={columns} />
           </li>
         ))}
       </ul>

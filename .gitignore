@@ -38,6 +38,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel
@@ -45,3 +46,40 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# ---------------------------------------------------------------------------
+# Source art and design dumps. None of this is read at build time.
+#
+# scripts/normalize-assets.mjs converts compressed_assets/ into public/assets/,
+# and public/assets/ IS committed -- that is what ships. The script skips any
+# source directory that is absent, so a fresh clone still builds. Keeping the
+# originals out of git also keeps a 60MB unreferenced video out of history.
+#
+# Back these up somewhere that is built for binaries. Git is not.
+# ---------------------------------------------------------------------------
+compressed_assets/
+
+# Raw Figma REST dumps -- 41MB, re-pullable with scripts/figma-pull.mjs given a
+# FIGMA_TOKEN. The distilled design/case-study.tokens.json and design/spec.md
+# stay tracked: the e2e fidelity spec asserts against the former, and the
+# latter is the design source of truth.
+design/figma/
+
+# Reference art for the radio package. Not imported by anything.
+radio_component/image/
+
+# Screenshot script invoked with an undefined path argument wrote 16 PNGs to a
+# literal "undefined" directory. Junk, but 20MB of it, and one `git add -A`
+# from being in history forever.
+/undefined/
+
+# Superseded copy drafts and pre-workspace lockfile backups.
+/case-study-copy/_to_delete/
+*.pre-workspace.bak
+
+# Agent-facing working docs. They keep working locally; they just are not
+# published. README.md is the public entry point.
+AGENTS.md
+CLAUDE.md
+HANDOFF.md
+LAUNCH.md

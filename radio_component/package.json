@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Interactive 3D radio component for the IJO DISCO portfolio",
+  "description": "Interactive 3D radio component streaming a YouTube playlist \u2014 see README.md for integration.",
   "main": "./src/index.ts",
   "scripts": {
     "dev": "vite",
@@ -33,5 +33,9 @@
     "typescript": "^5.9.3",
     "vite": "^7.1.9",
     "vitest": "^3.2.4"
+  },
+  "peerDependencies": {
+    "react": ">=19",
+    "react-dom": ">=19"
   }
 }

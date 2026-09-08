@@ -4,6 +4,21 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* The app is a fixed-viewport shell, and the document is never the scroller.
+
+   Three elements do the real scrolling -- the Window, the sidebar panel and
+   `[data-study-scroll]` -- and none of them is the page. Left unclipped, any
+   transient overflow makes the document scrollable and scrolls the white body
+   into view under the ground: the boot alone is enough, because it blows the
+   Window up past the viewport with a transform and a transform's visual
+   overflow counts. Unlayered on purpose, so it beats preflight. */
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
 @theme inline {
     --font-heading: var(--font-sans);
     --font-sans: var(--font-sans);
@@ -149,8 +164,18 @@
      The clamp guards both extremes: below ~690px of Window the scene stops
      shrinking (and the shelf grid reflows to fewer cans instead), and on
      ultrawide it stops growing. Requires a `container-type: inline-size`
-     ancestor -- that is `.kitchen-stage`. */
-  --u: clamp(0.62px, 0.09285cqw, 1.15px);
+     ancestor -- that is `.kitchen-stage`.
+
+     The HEIGHT term is the second half of the story. The frame is 884 tall as
+     well as 1077 wide, and the Window's height comes from `h-dvh` -- which has
+     nothing to do with its width. Sizing on width alone therefore overflowed
+     the bottom on any wide-but-short viewport: 90px over at 1512x845, a stock
+     laptop. Taking the smaller of the two keeps the whole 1077x884 composition
+     inside its Window at every aspect ratio, and still reads 1-to-1 with Figma.
+     On the viewports the design was drawn for, width binds and this changes
+     nothing. */
+  --window-h: calc(100dvh - 19px);
+  --u: clamp(0.62px, min(0.09285cqw, calc(var(--window-h) / 884)), 1.15px);
 
   /* -- Palette ------------------------------------------------------------
      Three structural colours plus the accents the handoff paints on chips,
@@ -164,6 +189,24 @@
   --color-kitchen-blue: #14a0e1;
   /* The ground the expanded "Meet the head Cheff" panel opens onto (21:423). */
   --color-kitchen-sky: #8ab4f0;
+  /* The case-study reading surface (25:665). Warm greige rather than the
+     kitchen's paper -- a long read on #fafafa inside a purple frame glares. */
+  --color-kitchen-tan: #c1b2a3;
+
+  /* The app surface: the page ground, the sidebar, and everything tinted to
+     match them. A ROLE, not a hue -- it is purple in the kitchen and sand while
+     reading a case study (51:1569), so anything that should follow the room
+     uses this rather than kitchen-purple. Genuinely-purple things, like the
+     revenue sticker, keep kitchen-purple and do not move. */
+  --color-kitchen-surface: var(--color-kitchen-purple);
+  /* Brown, dark enough to READ on tan.
+     The design sets its labels in kitchen-brown on kitchen-tan, which is
+     3.09:1 -- below the 4.5:1 WCAG AA needs for 12px text, and axe fails the
+     page on it. This is the same hue darkened along its own ray until it
+     clears (4.67:1). Text on tan uses this; borders, wells and rules keep
+     kitchen-brown, where contrast does not apply and the design's value is
+     exactly right. */
+  --color-kitchen-brown-deep: #55412c;
 
   /* -- Typefaces ---------------------------------------------------------- */
   --font-satoshi: var(--font-satoshi), ui-sans-serif, system-ui, sans-serif;
@@ -194,6 +237,17 @@
      Widening this overflows the 188x28 sticker. */
   --text-micro--line-height: 0.82;
   --text-micro--letter-spacing: -0.02em;
+
+  /* Case-study title (35:243) and the leading running prose gets.
+     Every text node in 25:664 is set to Figma's AUTO leading, so 1.35 is not a
+     design choice -- it is Satoshi's own metric, which the kitchen's blanket
+     120% overrides. 120% is right for one-line chips and pills and far too
+     tight for a paragraph, so the reading page lets the font breathe.
+     (Doto's intrinsic leading is 120%, which is why Doto labels keep it.) */
+  --text-title: 24px;
+  --text-title--line-height: 1.35;
+  --text-title--letter-spacing: -0.02em;
+  --leading-prose: 1.35;
 
   /* -- Radii, as drawn ----------------------------------------------------- */
   --radius-window: calc(6 * var(--u));
@@ -228,17 +282,56 @@
   --wall-tile-size: calc(539 * var(--u));
 
   /* -- Motion --------------------------------------------------------------
-     `smooth` is Praise's Jitter preset, given verbatim. The rest are
-     provisional stand-ins until the preset sheet arrives. */
-  --ease-smooth: cubic-bezier(0.9, 0, 0, 1);
-  --ease-out-soft: cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-in-soft: cubic-bezier(0.7, 0, 0.84, 0);
-  --ease-in-out-soft: cubic-bezier(0.87, 0, 0.13, 1);
+     Praise's Jitter presets, given verbatim (Motion Design brief). These six
+     are the whole vocabulary -- nothing in this codebase should introduce a
+     seventh curve.
 
-  /* Durations, per the UI wiki: press/hover 120-180, state 180-260, cap 300. */
+       smooth      movement of something already on screen   (ease-in-out)
+       slow-down   something arriving                        (ease-out)
+       accelerate  something leaving                         (ease-in)
+       elastic     a settle with life in it                  peak 1.3055
+       bounce      a drop under gravity, three bounces
+       overshoot   a pop                                     peak 1.68
+
+     Note `smooth` is 0.74, not the 0.9 an earlier draft of the brief carried.
+     The Motion Design tab supersedes it.
+
+     THE TRAP with the three `linear()` curves: they are PROGRESS curves, so
+     the overshoot is a fraction of the delta, not an absolute. `overshoot` on
+     `scale: 0.96 -> 1` peaks at 1.027, which is the effect. The same curve on
+     `scale: 0 -> 1` peaks at 1.68 -- an element that visibly explodes. Apply
+     elastic and overshoot to SMALL deltas only; anything with real travel that
+     needs to bounce uses a spring (see lib/motion.ts).
+
+     lib/motion.ts mirrors these as sampled functions for motion/react, and
+     lib/motion.test.ts parses this file to prove the two never drift. */
+  --ease-smooth: cubic-bezier(0.74, 0, 0, 1);
+  --ease-slow-down: cubic-bezier(0, 0.36, 0, 1);
+  --ease-accelerate: cubic-bezier(1, 0, 1, 0.64);
+  --ease-elastic: linear(0, 0.0404, 0.1384, 0.2773, 0.4406, 0.613, 0.7813, 0.9349, 1.0659, 1.1695, 1.2435, 1.2881, 1.3055, 1.2992, 1.2738, 1.2344, 1.1861, 1.1337, 1.0815, 1.0329, 0.9906, 0.9564, 0.9311, 0.9149, 0.9073, 0.9072, 0.9135, 0.9244, 0.9386, 0.9544, 0.9705, 0.9858, 0.9994, 1.0106, 1.0191, 1.0249, 1.028, 1.0286, 1.0272, 1.0242, 1.0201, 1.0154, 1.0104, 1.0057, 1.0013, 0.9977, 0.9948, 0.9928, 0.9916, 0.9912, 0.9915, 0.9923, 0.9935, 0.9949, 0.9964, 0.9979, 0.9992, 1.0004, 1.0014, 1.002, 1.0025, 1.0027, 1.0026, 1.0024, 1.0021, 1.0017, 1.0012, 1.0008, 1.0004, 1, 0.9997, 0.9994, 0.9993, 0.9992, 0.9992, 0.9992, 0.9993, 0.9994, 0.9996, 0.9997, 0.9999, 1, 1.0001, 1.0002, 1.0002, 1.0002, 1.0003, 1.0002, 1.0002, 1.0002, 1.0001, 1.0001, 1.0001, 1, 1, 1, 0.9999, 0.9999, 0.9999, 0.9999, 1);
+  --ease-bounce: linear(0, 0.0018, 0.0073, 0.0164, 0.0293, 0.0457, 0.0658, 0.0896, 0.1171, 0.1482, 0.183, 0.2214, 0.2635, 0.3092, 0.3586, 0.4117, 0.4685, 0.5289, 0.5929, 0.6606, 0.732, 0.8071, 0.8858, 0.9681, 0.9678, 0.9188, 0.8735, 0.8319, 0.7939, 0.7595, 0.7288, 0.7018, 0.6785, 0.6588, 0.6427, 0.6304, 0.6217, 0.6166, 0.6152, 0.6175, 0.6234, 0.633, 0.6463, 0.6632, 0.6838, 0.708, 0.7359, 0.7675, 0.8027, 0.8416, 0.8841, 0.9303, 0.9802, 0.9802, 0.9514, 0.9262, 0.9047, 0.8868, 0.8726, 0.8621, 0.8553, 0.8521, 0.8525, 0.8566, 0.8644, 0.8759, 0.891, 0.9097, 0.9322, 0.9582, 0.988, 0.9879, 0.9715, 0.9589, 0.9499, 0.9445, 0.9429, 0.9448, 0.9505, 0.9598, 0.9728, 0.9894, 0.9946, 0.9854, 0.9798, 0.9779, 0.9797, 0.9851, 0.9942, 0.9964, 0.9922, 0.9917, 0.9948, 0.9991, 0.9967, 0.998, 0.9989, 0.9995, 0.9996, 1, 1);
+  --ease-overshoot: linear(0, 0.3062, 0.5308, 0.7142, 0.869, 1.0017, 1.1163, 1.2156, 1.3019, 1.3765, 1.4409, 1.4959, 1.5425, 1.5814, 1.613, 1.6381, 1.6569, 1.6699, 1.6775, 1.68, 1.6782, 1.673, 1.6644, 1.6527, 1.6384, 1.622, 1.604, 1.5848, 1.5648, 1.5445, 1.524, 1.5037, 1.4836, 1.4639, 1.4447, 1.426, 1.4078, 1.3902, 1.3732, 1.3568, 1.3409, 1.3256, 1.3109, 1.2967, 1.283, 1.2698, 1.2571, 1.2448, 1.2331, 1.2217, 1.2108, 1.2003, 1.1902, 1.1805, 1.1711, 1.1621, 1.1534, 1.1451, 1.1371, 1.1294, 1.122, 1.1149, 1.1081, 1.1016, 1.0953, 1.0893, 1.0836, 1.0781, 1.0728, 1.0677, 1.0629, 1.0583, 1.0539, 1.0498, 1.0458, 1.042, 1.0384, 1.035, 1.0318, 1.0288, 1.0259, 1.0232, 1.0207, 1.0183, 1.0161, 1.0141, 1.0122, 1.0104, 1.0088, 1.0074, 1.006, 1.0049, 1.0038, 1.0029, 1.0021, 1.0015, 1.0009, 1.0005, 1.0002, 1.0001, 1);
+
+  /* Durations. press/state are product timings and stay under the UI wiki's
+     limits -- they are on things a visitor touches all day. enter/settle/drop
+     are entrance and character motion, seen once per load, where the brief's
+     "fun, whacky, delightful" wins over the 300ms product cap. */
   --duration-press: 140ms;
   --duration-state: 220ms;
   --duration-max: 300ms;
+  --duration-enter: 520ms;
+  --duration-settle: 680ms;
+  --duration-drop: 900ms;
+  /* The room repainting purple to sand.
+     Its own token rather than a reuse of --duration-drop, which currently
+     holds the same number: they are different moves and either should be
+     retunable without silently retiming the other. This one is slow on
+     purpose -- it is a whole wall changing colour, and at entrance speed it
+     read as a flash rather than as the same room turning. */
+  --duration-surface: 900ms;
+
+  /* One beat of a staggered run. */
+  --stagger: 55ms;
 }
 
 @layer base {
@@ -280,7 +373,321 @@
   }
 }
 
+/* -- Interactive controls ---------------------------------------------------
+   One declaration owns an interactive element's whole transition.
+
+   Written as a single utility with hover and active inside it, rather than two
+   utilities that both set `scale`: Tailwind orders `@utility` blocks itself, so
+   two of them competing for one property is a coin toss over whether pressing a
+   hovered chip squashes it. Inside one block, source order settles it.
+
+   Properties are listed individually because they want different timings: the
+   scale is state-speed on the overshoot curve, everything else is press-speed
+   and smooth. `scale`/`translate`/`rotate` are named alongside `transform`
+   because Tailwind v4 emits the individual properties, and a transition on
+   `transform` alone does not cover them. */
+@utility garnish-pop {
+  /* The chillies, tomatoes and onions pop under the pointer.
+
+     `scale`, not `transform`: each garnish already carries a rotation and a
+     flip in its inline `transform`, and writing to that property here would
+     wipe both. The separate `scale` property composes with them instead.
+
+     The overshoot curve on a 0.14 delta peaks around 1.10, so it springs past
+     its target and settles rather than easing flatly into it. */
+  transition: scale var(--duration-state) var(--ease-overshoot);
+
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      scale: 1.14;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+
+    &:hover {
+      scale: none;
+    }
+  }
+}
+
+@utility springy {
+  transition:
+    scale var(--duration-state) var(--ease-overshoot),
+    translate var(--duration-state) var(--ease-overshoot),
+    rotate var(--duration-state) var(--ease-overshoot),
+    transform var(--duration-state) var(--ease-overshoot),
+    filter var(--duration-press) var(--ease-smooth),
+    color var(--duration-press) var(--ease-smooth),
+    background-color var(--duration-press) var(--ease-smooth),
+    border-color var(--duration-press) var(--ease-smooth);
+
+  /* The brief's "slight scale up with an overshoot motion". The delta is 0.03,
+     so the curve's 1.68 peak lands at about 1.05 -- a bloom, not a jump. See
+     the warning on the overshoot token: these curves are progress curves.
+
+     Gated on a real pointer. A touch device fires :hover on tap and then has
+     no way to leave, so the control would stay enlarged until something else
+     is tapped. */
+  @media (hover: hover) and (pointer: fine) {
+    &:hover {
+      scale: 1.03;
+    }
+  }
+
+  /* After :hover on purpose, so a press beats a hover on the same control.
+     Accelerate going down -- a press should feel like it meets the finger. */
+  &:active {
+    scale: 0.97;
+    transition-duration: var(--duration-press);
+    transition-timing-function: var(--ease-accelerate);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition:
+      color var(--duration-press) linear,
+      background-color var(--duration-press) linear,
+      border-color var(--duration-press) linear;
+
+    &:hover,
+    &:active {
+      scale: none;
+    }
+  }
+}
+
+/* The same contract for controls that already move on hover in their own way
+   -- the contact button lifts, the back chevron slides -- and only want the
+   press half of it. */
+@utility press {
+  transition:
+    scale var(--duration-press) var(--ease-overshoot),
+    translate var(--duration-press) var(--ease-smooth),
+    transform var(--duration-press) var(--ease-smooth),
+    color var(--duration-press) var(--ease-smooth),
+    background-color var(--duration-press) var(--ease-smooth);
+
+  &:active {
+    scale: 0.97;
+    transition-timing-function: var(--ease-accelerate);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    &:active {
+      scale: none;
+    }
+  }
+}
+
 @layer components {
+  /* -- The 0-100 counter ---------------------------------------------------
+     Sits low in the corner, the way the reference does: the number is the only
+     thing on the screen with any size to it. Doto is the house pixel face and
+     at this scale it reads as a scoreboard, which is the register the brief
+     keeps asking for.
+
+     Static. An earlier pass gave each digit its own rolling reel; it read as a
+     different thing from the reference, which simply counts. */
+  .count {
+    position: absolute;
+    bottom: calc(10 * var(--u));
+    left: calc(16 * var(--u));
+    color: var(--color-kitchen-red);
+    font-size: clamp(88px, 21vw, 300px);
+    line-height: 1;
+    /* Room for all three digits from the start.
+
+       Without it the box grows when the count reaches 100 and, at this size,
+       a third of the screen changes width in one frame. Left-aligned inside
+       the reserved space, so no digit already on screen ever moves: the number
+       only ever gains a glyph to its right. Needs the tabular figures on the
+       element to be worth anything. */
+    width: 3ch;
+    text-align: left;
+  }
+
+  /* -- The boot ------------------------------------------------------------
+     The Window is blown up to cover the viewport while the loader runs and
+     animates back down to its resting box when the room opens. That is the
+     brief's "the kitchen tile shrinks to its default size": it is the whole
+     Window shrinking, tiled wall and loading screen included, not a separate
+     plane pretending to.
+
+     The transform lives here rather than in the component so the shrink is a
+     state change -- removing `data-booting` runs it -- and so nothing has to
+     imperatively animate an element it does not own.
+
+     Only `transform` is transitioned. Layout is untouched, which matters: --u
+     is a container query unit on this element and a transform does not affect
+     the container's own size, so the scene stays laid out at its final size
+     throughout and simply arrives scaled. No reflow, no --u churn. */
+  .kitchen-stage {
+    transition: transform var(--duration-drop) var(--ease-smooth);
+  }
+
+  html[data-booting] .kitchen-stage {
+    transform: translate(var(--boot-x), var(--boot-y)) scale(var(--boot-scale));
+    /* Instant on the way OUT to cover, animated on the way back.
+
+       Without this the Window visibly inflates from its frame to full bleed at
+       the top of every page load -- the transition on the base rule applies in
+       both directions. Suppressing it here makes the cover simply the state
+       the page opens in, and removing the data-booting attribute drops back to
+       the base rule, which does carry the transition, so the shrink animates. */
+    transition: none;
+  }
+
+  /* Lifting the Window above the sidebar has to happen on the Window's PARENT.
+     z-index on .kitchen-stage only orders it against its own siblings, and the
+     sidebar is an aunt, not a sister. */
+  html[data-booting] main > div:has(> .kitchen-stage) {
+    z-index: 60;
+  }
+
+  /* A covered Window is bigger than the viewport by definition. Without this
+     the overflow gives the document scrollbars for the length of the boot. */
+  html[data-booting],
+  html[data-booting] body {
+    overflow: clip;
+  }
+
+  /* The loader's type would otherwise be drawn at --boot-scale along with
+     everything else. Both transitions share a duration and a curve, so the
+     type holds its size while the room shrinks around it.
+
+     Written the same way round as the Window's own cover: the compensation is
+     applied instantly while booting and only animates on the way back out.
+     With the transition on the booting state instead, the number visibly zoomed
+     into place at the top of every load, because the custom property is unset
+     for the first frame and the scale then animated from 1. */
+  .loader-compensate {
+    scale: 1;
+    transition: scale var(--duration-drop) var(--ease-smooth);
+  }
+
+  html[data-booting] .loader-compensate {
+    scale: var(--boot-inv, 1);
+    transition: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .kitchen-stage,
+    .loader-compensate {
+      transition: none;
+    }
+  }
+
+  /* -- MaskWords -----------------------------------------------------------
+     One clipping box per word. `clip` rather than `hidden` so the box does not
+     become a scroll container, and a hair of bottom padding with a matching
+     negative margin because descenders hang below the line box and `overflow`
+     does not know that -- without it the tails of g, y and p are sliced off.
+
+     The trailing space is a pseudo-element: the words are separate elements
+     now, so the whitespace between them is no longer in the text. */
+  /* No pseudo-element space between words. MaskWords emits a real space text
+     node, which is what keeps the heading readable to copy-paste, search and a
+     screen reader -- and drawing a second one in CSS doubles every gap. The
+     doubling is easy to miss when measuring, because the pseudo-element sits
+     inside the word's own box: the distance BETWEEN boxes still reads as one
+     normal space while the rendered gap is two. */
+  .mask-word {
+    display: inline-block;
+    overflow: clip;
+    vertical-align: bottom;
+    padding-bottom: 0.16em;
+    margin-bottom: -0.16em;
+  }
+
+  /* -- The entrance, under reduced motion ----------------------------------
+     Everything that enters is held at its starting offset until the loader
+     hands the room over. If the visitor has asked for less motion there is no
+     entrance to wait for, so the starting offset must not exist at all --
+     otherwise a reduced-motion visitor can be left looking at a room scaled to
+     86% and faded out, which is exactly what happened.
+
+     This is CSS rather than a branch in the component because the component
+     learns about the preference from a hook, and a hook resolves after the
+     first paint. A media query is true on the first paint or never, so the
+     resting state is guaranteed rather than raced.
+
+     `!important` is deliberate and is the one place it is warranted: motion
+     writes these as inline styles, and nothing else can reach them. */
+  @media (prefers-reduced-motion: reduce) {
+    [data-reveal] {
+      opacity: 1 !important;
+      transform: none !important;
+      scale: none !important;
+      translate: none !important;
+    }
+  }
+
+  /* -- The case study's scroller -------------------------------------------
+     Smooth scroll, so a rail jump travels rather than teleports. CSS rather
+     than a scroll-hijacking library: the rail listens to this element's real
+     scroll events and the kitchen's gallery reads real wheel events, and an
+     inertial wrapper replaces both with synthetic ones.
+
+     `clip` on the cross axis, not `hidden`: sections arrive at 110% scale and
+     a 519px measure at 110% is 571px, which overflows the column on a phone.
+     case-study.spec.ts asserts no horizontal overflow at 390/768/1440 and is
+     the guard on this. `clip` contains the overshoot without making the
+     element a scroll container, which `hidden` would. */
+  [data-study-scroll] {
+    overflow-x: clip;
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    [data-study-scroll] {
+      scroll-behavior: smooth;
+    }
+  }
+
+  /* Reading a case study repaints the room. Figma 51:1569 against 25:664 is a
+     straight substitution -- every #9770ff becomes #c1b2a3, with no geometry or
+     type changes -- so this is one variable, not a second set of components.
+     The transition is what makes it read as the same room changing rather than
+     a different page loading. */
+  [data-surface="sand"] {
+    --color-kitchen-surface: var(--color-kitchen-tan);
+  }
+
+  /* Everything that actually carries the ground, matched by the token rather
+     than by where it sits.
+
+     This used to read `aside > div`, which was the sidebar panel until a
+     wrapper was added between the two for the entrance -- after which the
+     selector hit the wrapper, which has no background, and the sidebar snapped
+     from purple to sand while the page behind it faded. Matching on the class
+     that carries the colour cannot come apart that way: an element gets the
+     transition because it is painted in the surface colour, which is the same
+     reason it needs one.
+
+     The substring match is deliberate. Tailwind emits `bg-kitchen-surface/25`
+     as its own class, so an exact match would miss every element using the
+     token at an opacity.
+
+     Background and border only. `color` is left alone: it is the property the
+     old blanket `*` rule animated from every element's inherited value on first
+     paint, and the only surface-coloured TEXT here is the label inside the
+     Comments panel, where a snap on a black ground is invisible anyway. */
+  [data-surface],
+  [data-surface] [class*="bg-kitchen-surface"],
+  [data-surface] [class*="border-kitchen-surface"] {
+    transition:
+      background-color var(--duration-surface) var(--ease-smooth),
+      border-color var(--duration-surface) var(--ease-smooth);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    [data-surface],
+    [data-surface] [class*="bg-kitchen-surface"],
+    [data-surface] [class*="border-kitchen-surface"] {
+      transition: none;
+    }
+  }
+
   /* Everything inside the kitchen sizes against the kitchen's own width, which
      is what makes --u work. */
   .kitchen-stage {
@@ -302,9 +709,166 @@
 
   /* The scene has a legible floor. Once --u bottoms out this resolves to
      ~668px and the Window pans horizontally instead of crushing the cans;
-     above that it equals the container width exactly, so it does nothing. */
+     above that it equals the container width exactly, so it does nothing.
+
+     The clip is what actually keeps the Window from scrolling on its own
+     contents. Garnishes are drawn past 1077 on purpose (a tomato reaches
+     1102.19) and the wall gallery hangs below the band, both to be cut off by
+     the Window edge -- but the stage's own `overflow: hidden` cannot do it,
+     because an `overflow-auto` scroller sits between the two and turns the
+     spill into scrollbars. This is the box those coordinates are measured
+     against, so this is where it has to happen. `clip` rather than `hidden`
+     so it does not become a scroll container in turn.
+     kitchen-overflow.spec.ts is the guard. */
   .kitchen-scene {
     min-width: calc(1077 * var(--u));
+    overflow: clip;
+  }
+
+  /* -- The phone frame -----------------------------------------------------
+     Below lg the room is re-framed rather than panned. The `--u` comment up in
+     @theme already called this: "below ~690px of Window the scene stops
+     shrinking (and the shelf grid reflows to fewer cans instead)". This is that
+     reflow; it was described and never built, so the scene panned instead and
+     a 390px phone showed a little over half the room with nothing to say so.
+
+     The frame is 600 x 1344 design units instead of 1077 x 884: two cans per
+     shelf across, five shelves down (header 38 + 5 x 230 + 156 of floor). The
+     can keeps its 178u width, so nothing about a can is redrawn -- only how
+     many stand side by side.
+
+     600 is chosen against the floor, not picked for looks. `--u` cannot go
+     below 0.62px (a can must stay over 100px wide, which responsive.spec.ts
+     asserts), and 372px of scroller at 390px of viewport divided by 600 is
+     exactly 0.62. A wider frame would push --u under the floor and the scene
+     would start panning again, which is the whole thing being fixed.
+
+     The scene ends up taller than the viewport, and that is the point: the
+     Window scrolls vertically through five shelves instead of leaving the
+     bottom 45% of a tall phone as empty wall.
+
+     Declared on .kitchen-stage, not :root, because @theme emits plain
+     variables and cannot carry a media query. `cqw` still resolves against
+     .kitchen-stage either way -- a custom property is substituted where it is
+     USED, and every use is a descendant. */
+  @media (width < 1024px) {
+    .kitchen-stage {
+      /* 480u, and NO height term.
+         480 is the narrowest frame that still holds two 178u cans plus the
+         grid's ~17.7% side padding (356 + 85 = 441), and the widest that
+         clears the floor on a 320px phone: 302px of scroller over 480 is
+         0.629, just above the 0.62 minimum. At 600 it came out at 0.50, under
+         the floor, so the scene panned and took the Contact button off the
+         right edge.
+         The height term is dropped on purpose. Binding --u to
+         `--window-h / 1344` squeezed the whole five-shelf column into one
+         screen, which is what kept a tablet's cans small. Without it the
+         Window scrolls vertically like any other page and the room is drawn at
+         a size you can actually see: a 768 tablet goes from ~148px cans to
+         ~185px, a 390 phone from 110px to ~138px. */
+      --u: clamp(0.62px, calc(100cqw / 480), 1.15px);
+
+      /* Every derived token has to be re-declared here, and this is the whole
+         reason the phone frame never actually scaled.
+         They are `@theme` tokens, so Tailwind registers them and they are
+         COMPUTED at :root -- where `cqw` has no container to resolve against
+         and `--u` therefore falls to its 0.62px floor. Re-declaring `--u` on
+         .kitchen-stage moved the value for anything reading `var(--u)`
+         directly (the scene's own min-width, the garnish positions), but
+         `--can-w` and friends had already been resolved upstream and kept the
+         floor. That is why a can measured 110px at 320, 375, 390 AND 768: it
+         was not scaling at all, it was pinned to the minimum, and 600 x 0.62
+         happening to equal a 390 phone's scroller is what made it look
+         deliberate.
+         Same formulas, re-evaluated where `cqw` means something. */
+      --row-h: calc(230 * var(--u));
+      --can-w: calc(178 * var(--u));
+      --can-lid-w: calc(180 * var(--u));
+      --can-lid-h: calc(24 * var(--u));
+      --can-label-h: calc(100 * var(--u));
+      --can-base-h: calc(3 * var(--u));
+      --can-lift: calc(9 * var(--u));
+      --shelf-base-h: calc(8 * var(--u));
+      --shelf-base-bottom: calc(-1 * var(--u));
+      --shelf-top-h: calc(7 * var(--u));
+      --shelf-top-bottom: calc(7 * var(--u));
+      --shelf-wood-tile: calc(184 * var(--u));
+      --header-h: calc(38 * var(--u));
+      --wall-tile-size: calc(539 * var(--u));
+    }
+
+    .kitchen-scene {
+      min-width: calc(480 * var(--u));
+
+      /* The column is now TALLER than the Window, and it has to be allowed to
+         say so. As a stretched flex item with `overflow: clip` the scene was
+         pinned to the scroller's height and simply cut the shelves off: five
+         shelves were laid out, the fifth was unreachable, and the scroller
+         reported nothing to scroll because its content fitted exactly.
+         `flex-start` lets it exceed its container, `min-height` keeps it
+         filling a short one, and the clip narrows to the X axis so the
+         garnishes are still cut at the Window edge without the Y axis being
+         cut with them. */
+      align-self: flex-start;
+      min-height: 100%;
+      overflow-x: clip;
+      overflow-y: visible;
+    }
+
+    .can-grid {
+      grid-template-columns: repeat(2, var(--can-w));
+    }
+
+    /* See KitchenWindow: the floor band stops growing so the wall grid lands
+       at the bottom of the scroll rather than floating in the middle. */
+    .kitchen-scene {
+      --floor-flex: 0 0 calc(156 * var(--u));
+    }
+
+    /* Nine works over two columns leaves the last shelf holding one, and
+       `space-between` then pins it hard left against an empty half-shelf.
+       Centred, it reads as the end of the run rather than as a gap. */
+    .can-grid:has(> li:only-child) {
+      /* The track count has to collapse too. `justify-content` centres the
+         two TRACKS, so a single can still sat in the first of them -- left of
+         the middle, which is what it looked like. */
+      grid-template-columns: var(--can-w);
+      justify-content: center;
+    }
+  }
+
+  /* The menu button sits at z-80 so the boot cover cannot bury it -- it is the
+     only control a phone has, and it was invisible until the room had finished
+     arriving. That height also puts it above the sheets, which portal to
+     <body>, so it landed on top of their actions. It steps aside whenever one
+     is open: a modal sheet already owns the screen, and the button it would
+     cover is the reason the sheet was opened. */
+  body:has([data-slot="drawer-content"]) [data-menu-fab] {
+    display: none;
+  }
+
+  /* -- Smooth scrolling ----------------------------------------------------
+     The document does not scroll (see the note on `html, body`), so this has
+     to go on the three elements that do: the Window, the sidebar panel and a
+     study's article. Anchored jumps -- the progress rail, a skip link, a
+     focused control being scrolled into view -- then glide instead of
+     teleporting.
+
+     `scroll-behavior` and nothing more. Inertia-hijacking libraries (Lenis and
+     friends) reimplement the wheel in JS, which means a rAF loop competing
+     with the WebGL radio for the same frames, a scrollbar that no longer
+     matches the content, and a page that fights the trackpad's own physics.
+     The native property is what the platform already does well.
+
+     Reduced motion opts out: this is exactly the involuntary movement that
+     setting exists to stop. */
+  @media (prefers-reduced-motion: no-preference) {
+    .kitchen-stage > div,
+    [data-study-scroll],
+    aside [class*="overflow-y-auto"],
+    [data-slot="drawer-content"] [class*="overflow-y-auto"] {
+      scroll-behavior: smooth;
+    }
   }
 
   /* Chips -- the sidebar filters and the tags painted on a can are the same
@@ -345,8 +909,24 @@
     backdrop-filter: blur(2px);
   }
 
-  /* Cylindrical tin. Three inset shadows, not a gradient. */
-  .can-label {
+  /* Cylindrical tin. Three inset shadows, not a gradient.
+
+     On ::after, NOT on the element. An inset box-shadow paints above its own
+     background but beneath its children, and the label's child is a `fill`
+     cover image -- so declared on `.can-label` itself the whole curve is
+     painted and then covered, and every can reads as a flat rectangle. This is
+     a pseudo-element laid over the artwork instead, which is the one place the
+     shadows can sit above the cover and still below the category tags at z-2.
+
+     Regression note: this has been lost once already by being folded back onto
+     the element. If a can ever looks flat again, check this selector first. */
+  .can-label::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    border-radius: inherit;
     box-shadow:
       inset -12px 0 8px rgba(211, 192, 171, 0.25),
       inset 0 4px 8px rgba(0, 0, 0, 0.2),
@@ -362,3 +942,72 @@
   }
 }
 
+/* -- The hearth --------------------------------------------------------------
+   The only @keyframes in this file, and deliberately so: everything else here
+   is a transition on one of the six curves. An ambient loop with no state
+   behind it is the one thing a transition cannot express.
+
+   It animates `opacity` and `transform` only, so it stays on the compositor
+   and costs nothing per frame on the main thread -- which matters because a
+   WebGL radio is running a few hundred pixels away. The blur is static, so
+   each plume rasterises once and is then only moved.
+
+   Reduced motion is handled in the component, which renders a still frame
+   rather than a faster one. */
+
+@keyframes steam-rise {
+  /* A long plume, not a puff. It leaves the floor as a thin stem, sways one
+     way and then the other as it climbs, and blooms wide and diffuse near the
+     top before it goes -- which is the shape smoke actually makes, and the
+     reason this needs five stops rather than two.
+
+     Enters and leaves at zero opacity, so a plume never appears or vanishes
+     mid-air and several of them can be staggered into a continuous drift. */
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 0, 0) scale(0.42, 0.3);
+  }
+  14% {
+    opacity: 0.42;
+  }
+  38% {
+    transform: translate3d(calc(7 * var(--u)), calc(-30% - 90 * var(--u)), 0)
+      scale(0.72, 0.72);
+  }
+  66% {
+    opacity: 0.3;
+    transform: translate3d(calc(-6 * var(--u)), calc(-60% - 180 * var(--u)), 0)
+      scale(1.2, 1.1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(calc(12 * var(--u)), calc(-90% - 280 * var(--u)), 0)
+      scale(1.9, 1.45);
+  }
+}
+
+@layer components {
+  /* One plume.
+
+     Brightest at its base and fading out toward the top, on a box far taller
+     than it is wide -- that pairing is what reads as a column of smoke rather
+     than a cloud. The organic border-radius keeps the silhouette from being a
+     recognisable ellipse once the blur softens it. */
+  .hearth-steam {
+    position: absolute;
+    bottom: 0;
+    transform-origin: bottom center;
+    border-radius: 46% 54% 40% 60% / 62% 58% 42% 38%;
+    /* Enough to lose the edge of the box, not so much that the column smears
+       into the tile. Static, so it rasterises once. */
+    filter: blur(calc(7 * var(--u)));
+    background-image: radial-gradient(
+      ellipse at 50% 92%,
+      rgb(250 250 250 / 0.72) 0%,
+      rgb(250 250 250 / 0.34) 34%,
+      rgb(250 250 250 / 0.12) 60%,
+      transparent 78%
+    );
+    animation: steam-rise 16s var(--ease-slow-down) infinite;
+  }
+}

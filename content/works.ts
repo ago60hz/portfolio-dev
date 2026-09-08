@@ -20,6 +20,17 @@ export type Work = {
    */
   labelTags: WorkTag[];
   cta: Cta;
+  /**
+   * Overrides the `view` pill's target.
+   *
+   * Absent means the pill points at this work's own case study, `/work/{slug}`.
+   * Present means it leaves the site -- a few works live somewhere else
+   * entirely (a live store, a prototype, a Framer page) and have no local
+   * study to send anyone to.
+   */
+  href?: string;
+  /** Overrides the `more` pill's target. Only read when `cta` is "more-view". */
+  moreHref?: string;
   image: string;
   mark: string;
 };
@@ -28,22 +39,18 @@ const img = (n: string) => `/assets/works/${n}.webp`;
 const mark = (n: string) => `/assets/brands/${n}.webp`;
 
 /**
- * Shelf order is top-left to bottom-right, matching the handoff Window (1:223).
+ * Shelf order is top-left to bottom-right.
+ *
+ * Praise's running order rather than the handoff Window's (1:223): the shelf
+ * leads with MetaMask and works down to the reel pieces, so the first row a
+ * visitor meets is the strongest one. `content/case-studies/index.ts` keeps the
+ * same sequence for the five that have a study, so the "next case study" footer
+ * can never contradict the shelf.
  *
  * `tags` are derived from the painted chips plus the Figma category list.
  * Corrections belong here and nowhere else -- one edit re-filters the shelf.
  */
 export const WORKS: Work[] = [
-  {
-    slug: "katsusando",
-    title: "Katsusando",
-    blurb: "Scan your wallet for existing sandwich attacks.",
-    tags: ["shipped", "brand-design", "ai-assisted"],
-    labelTags: [tag("Shipped")],
-    cta: "more-view",
-    image: img("katsusando"),
-    mark: mark("katsusando"),
-  },
   {
     slug: "metamask",
     title: "MetaMask",
@@ -55,24 +62,17 @@ export const WORKS: Work[] = [
     mark: mark("metamask"),
   },
   {
-    slug: "dean",
-    title: "DEAN",
-    blurb: "Fresh Luxury: Brand identity & creative direction for DEAN.",
-    tags: ["brand-design", "motion", "ai-assisted"],
-    labelTags: [tag("brand")],
-    cta: "view",
-    image: img("dean"),
-    mark: mark("dean"),
-  },
-  {
-    slug: "faraway",
-    title: "The Faraway",
-    blurb: "Branding, positioning, and revenue funnels for a travel agency.",
-    tags: ["brand-design", "websites", "growth-automation"],
-    labelTags: [tag("brand"), tag("website"), tag("growth")],
-    cta: "coming-soon",
-    image: img("faraway"),
-    mark: mark("faraway"),
+    slug: "katsusando",
+    title: "Katsusando",
+    blurb: "Scan your wallet for existing sandwich attacks.",
+    tags: ["shipped", "brand-design", "ai-assisted"],
+    labelTags: [tag("Shipped")],
+    cta: "more-view",
+    href: "https://preview.eitherway.ai/a0c65593-3668-49aa-954a-59435853f726/",
+    moreHref:
+      "https://www.linkedin.com/posts/praisefabilola_despite-how-hard-it-was-to-go-from-zero-experience-activity-7481072935533711360-_Zxr",
+    image: img("katsusando"),
+    mark: mark("katsusando"),
   },
   {
     slug: "bonadocs",
@@ -85,19 +85,9 @@ export const WORKS: Work[] = [
     mark: mark("bonadocs"),
   },
   {
-    slug: "unrefyned",
-    title: "Unrefyned",
-    blurb: "Built the Shopify store, then grew it 66% in a month.",
-    tags: ["growth-automation", "shipped"],
-    labelTags: [tag("E-commerce"), tag("growth")],
-    cta: "view",
-    image: img("unrefyned"),
-    mark: mark("unrefyned"),
-  },
-  {
     slug: "passportmonie",
     title: "PassportMonie",
-    blurb: "Art direction and Ui face-lift for a travel & lifestyle payments app.",
+    blurb: "Art direction, illustration, and UI system for a travel-payments app.",
     tags: ["product-design", "brand-design", "ai-assisted"],
     labelTags: [tag("product"), tag("brand")],
     cta: "view",
@@ -105,9 +95,41 @@ export const WORKS: Work[] = [
     mark: mark("passportmonie"),
   },
   {
+    slug: "dean",
+    title: "DEAN",
+    blurb: "Brand identity and AI creative direction for a fresh-luxury booking platform.",
+    tags: ["brand-design", "motion", "ai-assisted"],
+    labelTags: [tag("brand")],
+    cta: "view",
+    image: img("dean"),
+    mark: mark("dean"),
+  },
+  {
+    slug: "faraway",
+    title: "The Faraway",
+    blurb: "Branding, positioning, and revenue funnels for a travel agency.",
+    tags: ["brand-design", "websites", "growth-automation"],
+    labelTags: [tag("brand"), tag("website"), tag("growth")],
+    cta: "view",
+    href: "https://book.thefaraway.co/",
+    image: img("faraway"),
+    mark: mark("faraway"),
+  },
+  {
+    slug: "unrefyned",
+    title: "Unrefyned",
+    blurb: "Built the Shopify store, then grew it 66% in a month.",
+    tags: ["growth-automation", "shipped"],
+    labelTags: [tag("E-commerce"), tag("growth")],
+    cta: "view",
+    href: "https://unrefynedstudio.com/",
+    image: img("unrefyned"),
+    mark: mark("unrefyned"),
+  },
+  {
     slug: "fagbemi-studios",
     title: "Fagbemi Studios",
-    blurb: "Brand identity and art direction for Fagbemi Studios.",
+    blurb: "Brand identity and AI creative direction for a fine art practice built on restraint.",
     tags: ["brand-design", "ai-assisted"],
     labelTags: [tag("brand")],
     cta: "view",
@@ -121,6 +143,7 @@ export const WORKS: Work[] = [
     tags: ["websites"],
     labelTags: [tag("Website")],
     cta: "view",
+    href: "https://sentio.framer.website/",
     image: img("sentio"),
     mark: mark("sentio"),
   },

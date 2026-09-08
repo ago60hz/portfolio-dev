@@ -55,6 +55,7 @@ export function Radio3D({ className, muted, radio: external }: Radio3DProps) {
   const containerRef = useRef<HTMLDivElement>(null)
 
   const webgl = useMemo(detectWebGL, [])
+  const reducedMotion = useMemo(() => mediaMatch('(prefers-reduced-motion: reduce)'), [])
   // Coarse pointer or a narrow viewport gets the cheaper render path.
   const lowPower = useMemo(
     () => mediaMatch('(pointer: coarse)') || mediaMatch('(max-width: 768px)'),
@@ -75,7 +76,7 @@ export function Radio3D({ className, muted, radio: external }: Radio3DProps) {
       {visible && (
         <div style={{ position: 'absolute', inset: 0 }}>
           <Suspense fallback={null}>
-            <RadioScene radio={radio} lowPower={lowPower} />
+            <RadioScene radio={radio} lowPower={lowPower} reducedMotion={reducedMotion} />
           </Suspense>
         </div>
       )}

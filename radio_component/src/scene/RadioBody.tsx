@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import * as THREE from 'three'
 import { RoundedBox } from '@react-three/drei'
 import { D } from './dims'
-import { getMaps, PALETTE } from './materials'
+import { chassisMaterial, getMaps, PALETTE } from './materials'
 
 /** How far the speaker's chrome ring stands proud of the chassis face, and
  * how deep behind that rim the grille itself sits. CAVITY < RIM keeps the
@@ -39,38 +39,19 @@ function Screw({ x, y }: { x: number; y: number }) {
 export function RadioBody() {
   const maps = useMemo(() => getMaps(), [])
 
-  const metal = useMemo(() => {
-    const m = new THREE.MeshStandardMaterial({
-      // Deliberately below the 0.88 the spec asks for. A flat, camera-facing
-      // plate at 0.88 has almost no diffuse response and samples only a
-      // narrow slice of the environment, so it renders as one flat tone that
-      // no light can shape — and dimming the environment just turns it dark.
-      // At ~0.55 the key light produces a real, aimable highlight and the
-      // base colour carries even brightness, which is what the reference
-      // actually looks like. Visual hierarchy over the numeric value.
-      color: '#C4C5C3',
-      metalness: 0.55,
-      roughness: 0.3,
-      roughnessMap: maps.metal.roughness,
-      normalMap: maps.metal.normal,
-      normalScale: new THREE.Vector2(0.28, 0.28),
-    })
-    m.roughnessMap!.repeat.set(2, 2)
-    m.normalMap!.repeat.set(2, 2)
-    return m
-  }, [maps])
+  const metal = chassisMaterial()
 
   const grille = useMemo(
     () =>
       new THREE.MeshStandardMaterial({
-        // Fine perforated metal mesh, dark warm brown, matte-leaning — low
-        // enough metalness/high enough roughness that it doesn't throw a
-        // bright specular hotspot under the key light.
+        // Fine perforated silver mesh. More metallic than the brown cloth it
+        // replaces, but roughness stays high enough to avoid a bright
+        // specular hotspot under the key light.
         map: maps.weave.map,
         normalMap: maps.weave.normal,
         normalScale: new THREE.Vector2(1.1, 1.1),
-        roughness: 0.64,
-        metalness: 0.24,
+        roughness: 0.48,
+        metalness: 0.62,
         // No tint: the weave map already carries #755A3D.
       }),
     [maps],
@@ -86,18 +67,7 @@ export function RadioBody() {
     [],
   )
 
-  const glass = useMemo(
-    () =>
-      new THREE.MeshStandardMaterial({
-        color: PALETTE.screenGlass,
-        roughness: 0.19,
-        metalness: 0.02,
-        map: maps.glass,
-      }),
-    [maps],
-  )
-
-  const { plate, screen, speaker, screw } = D
+  const { plate, speaker, screw } = D
   const faceZ = plate.d / 2
 
   return (
@@ -112,15 +82,16 @@ export function RadioBody() {
         own opaque front face.
       */}
 
-      {/* Screen: a single protruding slab, no separate frame part. Reads as
-          black glass embedded directly in the chassis, not glass-then-bezel. */}
-      <RoundedBox
-        args={[screen.w, screen.h, screen.protrude]}
-        radius={0.03}
-        smoothness={3}
-        position={[0, screen.y, faceZ + screen.protrude / 2]}
-        material={glass}
-      />
+      {/*
+        No screen mesh here on purpose. The display is the DOM layer in
+        ScreenPanel and nothing else. A WebGL slab behind that layer could
+        only ever be *aligned* with it — never identical, because the two are
+        drawn by different engines (WebGL vs. the browser compositing a
+        cross-origin iframe it will not let us read into a texture). Any
+        residual mismatch showed as a dark lip around the video. One object
+        cannot misalign with itself, so the slab is gone and the DOM element
+        carries the screen's own black face.
+      */}
 
       {/* Speaker: recessed well, thin chrome ring, perforated mesh grille — same forward-of-chassis logic. */}
       <group position={[0, speaker.y, faceZ]}>
@@ -128,7 +99,7 @@ export function RadioBody() {
             backing disc here is what read as a thick brown outer ring. */}
         <mesh position={[0, 0, SPEAKER_RIM - SPEAKER_CAVITY - 0.004]}>
           <circleGeometry args={[speaker.clothR, 64]} />
-          <meshStandardMaterial color="#3f3021" roughness={1} />
+          <meshStandardMaterial color="#42464a" roughness={1} />
         </mesh>
         <mesh position={[0, 0, SPEAKER_RIM - SPEAKER_CAVITY]}>
           <circleGeometry args={[speaker.clothR, 64]} />

@@ -1,0 +1,278 @@
+{
+  "$source": "Figma Qf9So7pT1dl36oVh98udnY node 25:664 \"Homepage/ case_study\"",
+  "$generatedBy": "scripts/case-study-tokens.mjs",
+  "window": {
+    "x": 0,
+    "y": 0,
+    "w": 1077,
+    "h": 884,
+    "surface": "#c1b2a3",
+    "border": {
+      "color": "#000000",
+      "opacity": 1,
+      "weight": 1,
+      "sides": {
+        "top": 1,
+        "right": 1,
+        "bottom": 2,
+        "left": 1
+      },
+      "dashes": null
+    },
+    "radius": 6
+  },
+  "header": {
+    "x": 0,
+    "y": 0,
+    "w": 1077,
+    "h": 38,
+    "border": {
+      "color": "#000000",
+      "opacity": 1,
+      "weight": 1,
+      "sides": null,
+      "dashes": null
+    },
+    "padding": {
+      "top": 8,
+      "right": 8,
+      "bottom": 8,
+      "left": 4
+    }
+  },
+  "breadcrumb": {
+    "gap": 4,
+    "chevron": {
+      "x": 5,
+      "y": 11,
+      "w": 16,
+      "h": 16
+    },
+    "filterChip": {
+      "x": 25,
+      "y": 11.5,
+      "w": 106,
+      "h": 15,
+      "fill": null,
+      "border": {
+        "color": "#000000",
+        "opacity": 1,
+        "weight": 1,
+        "sides": null,
+        "dashes": null
+      },
+      "radius": 8,
+      "padding": {
+        "top": 2,
+        "right": 6,
+        "bottom": 3,
+        "left": 6
+      },
+      "text": {
+        "family": "Satoshi Variable",
+        "weight": 500,
+        "size": 14,
+        "lineHeight": 18.9,
+        "letterSpacing": -0.28,
+        "color": "#000000"
+      }
+    },
+    "separator": {
+      "family": "Satoshi Variable",
+      "weight": 300,
+      "size": 14,
+      "lineHeight": 18.9,
+      "letterSpacing": -0.28,
+      "color": "#000000"
+    },
+    "studyChip": {
+      "fill": "#755a3d",
+      "radius": 8,
+      "text": {
+        "family": "Satoshi Variable",
+        "weight": 500,
+        "size": 14,
+        "lineHeight": 18.9,
+        "letterSpacing": -0.28,
+        "color": "#c1b2a3"
+      }
+    }
+  },
+  "column": {
+    "x": 279,
+    "y": 66,
+    "w": 519,
+    "h": 291,
+    "rule": {
+      "color": "#755a3d",
+      "opacity": 0.20000000298023224,
+      "weight": 1,
+      "sides": {
+        "top": 0,
+        "right": 0,
+        "bottom": 1,
+        "left": 0
+      },
+      "dashes": [
+        2,
+        1
+      ]
+    },
+    "paddingBottom": 40
+  },
+  "masthead": {
+    "gap": 21,
+    "paddingBottom": 40,
+    "avatar": {
+      "x": 279,
+      "y": 66,
+      "w": 24,
+      "h": 24,
+      "radius": 6,
+      "border": {
+        "color": "#000000",
+        "opacity": 1,
+        "weight": 1,
+        "sides": {
+          "top": 1,
+          "right": 1,
+          "bottom": 2,
+          "left": 1
+        },
+        "dashes": null
+      }
+    },
+    "brandGap": 8,
+    "brandLine": {
+      "family": "Doto",
+      "weight": 800,
+      "size": 14,
+      "lineHeight": 16.8,
+      "letterSpacing": -0.56,
+      "color": "#000000"
+    },
+    "title": {
+      "family": "Satoshi Variable",
+      "weight": 500,
+      "size": 24,
+      "lineHeight": 32.4,
+      "letterSpacing": -0.48,
+      "color": "#000000"
+    },
+    "hook": {
+      "family": "Gochi Hand",
+      "weight": 400,
+      "size": 16,
+      "lineHeight": 18.86,
+      "letterSpacing": -0.32,
+      "color": "#755a3d"
+    }
+  },
+  "metaGrid": {
+    "x": 279,
+    "y": 248,
+    "w": 519,
+    "h": 68,
+    "columnGap": 8,
+    "rowGap": 16,
+    "cellGap": 8,
+    "label": {
+      "family": "Doto",
+      "weight": 800,
+      "size": 12,
+      "lineHeight": 14.4,
+      "letterSpacing": -0.48,
+      "color": "#755a3d"
+    },
+    "value": {
+      "family": "Satoshi Variable",
+      "weight": 500,
+      "size": 14,
+      "lineHeight": 18.9,
+      "letterSpacing": -0.28,
+      "color": "#000000"
+    }
+  },
+  "media": {
+    "x": 279,
+    "y": 387,
+    "w": 519,
+    "h": 243,
+    "radius": 2,
+    "border": {
+      "color": "#755a3d",
+      "opacity": 1,
+      "weight": 1,
+      "sides": {
+        "top": 1,
+        "right": 1,
+        "bottom": 2,
+        "left": 1
+      },
+      "dashes": null
+    },
+    "gapFromColumn": 30
+  },
+  "rail": {
+    "x": 23,
+    "y": 106,
+    "w": 112,
+    "h": 184,
+    "ticks": {
+      "x": 23,
+      "y": 110,
+      "w": 40,
+      "h": 176,
+      "pitch": 11,
+      "widths": [
+        40,
+        36,
+        29,
+        26,
+        19,
+        16,
+        13,
+        10,
+        29,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        29
+      ],
+      "color": "#755a3d",
+      "weight": 1
+    },
+    "label": {
+      "family": "Doto",
+      "weight": 800,
+      "size": 12,
+      "lineHeight": 14.4,
+      "letterSpacing": -0.48,
+      "color": "#755a3d"
+    },
+    "labelX": 67,
+    "rule": {
+      "base": 10,
+      "section": 29,
+      "first": 40,
+      "ramp": [
+        36,
+        29,
+        26,
+        19,
+        16,
+        13,
+        10
+      ],
+      "sectionIndices": [
+        0,
+        8,
+        16
+      ]
+    }
+  }
+}

@@ -5,14 +5,58 @@ import { RadioBody } from './RadioBody'
 import { ButtonStack } from './ButtonStack'
 import { ScreenPanel } from './ScreenPanel'
 import { Cable } from './Cable'
+import { SpeakerRing } from './SpeakerRing'
 import { D } from './dims'
-import { PALETTE, studioEnvMap } from './materials'
+import { studioEnvMap } from './materials'
 import type { UseRadio } from '../hooks/useRadio'
 
-/** Whole unit is ~6.5 wide; shift left so plate + buttons balance in frame. */
-const UNIT_OFFSET_X = -(D.buttons.x0 + D.buttons.w) / 2
+/**
+ * True centre of the whole assembly: from the plate's left edge to the
+ * control strip's right edge. The old version measured from the strip alone,
+ * which pushed everything ~1.2 units left of centre.
+ */
+const UNIT_OFFSET_X = -(-D.plate.w / 2 + D.buttons.x0 + D.buttons.w) / 2
 
-type Props = { radio: UseRadio; lowPower: boolean }
+/**
+ * The unit rides high in frame so the cable has room to fall, matching the
+ * reference photo's composition (body in the upper two-thirds, cord trailing
+ * out of the bottom) rather than centring the body and cropping the coil.
+ */
+const UNIT_OFFSET_Y = 0.8
+
+type Props = { radio: UseRadio; lowPower: boolean; reducedMotion: boolean }
+
+/**
+ * Pointer parallax. Safer than it was: the screen is now a pure DOM layer with
+ * no WebGL slab underneath, so tilting can no longer slide the two out of
+ * register — the only constraint left is that the CSS3D layer keeps agreeing
+ * with the chassis mesh.
+ *
+ * Widened well past the original ±4°, which was set while a WebGL slab still
+ * sat behind the screen and the two passes visibly diverged. Yaw gets a wider
+ * budget than pitch because horizontal swing shows the brushed grain and the
+ * softbox reflections travelling across the plate, which is the point of it.
+ * Still capped: the Html layer always composites above the canvas, so past
+ * roughly 18° the screen reads as floating in front of the body.
+ */
+const MAX_TILT_X = THREE.MathUtils.degToRad(13)
+const MAX_TILT_Y = THREE.MathUtils.degToRad(16)
+
+function Rig({ children, reducedMotion }: { children: React.ReactNode; reducedMotion: boolean }) {
+  const ref = useRef<THREE.Group>(null)
+  const pointer = useThree((s) => s.pointer)
+
+  useFrame((_, dt) => {
+    const g = ref.current
+    if (!g || reducedMotion) return
+    // Damped slower than before so the unit settles like it has mass rather
+    // than snapping to the cursor — more travel needs more easing.
+    g.rotation.y = THREE.MathUtils.damp(g.rotation.y, pointer.x * MAX_TILT_Y, 3.5, dt)
+    g.rotation.x = THREE.MathUtils.damp(g.rotation.x, -pointer.y * MAX_TILT_X, 3.5, dt)
+  })
+
+  return <group ref={ref}>{children}</group>
+}
 
 /**
  * Studio environment, generated in-process (no CDN fetch, nothing over the
@@ -30,9 +74,9 @@ function StudioEnvironment() {
     const src = studioEnvMap()
     const target = pmrem.fromEquirectangular(src)
     scene.environment = target.texture
-    // Bright on purpose — this is the metal's primary light source, not an
-    // accent. The evenness of the map is what keeps it from reading as a
-    // gradient at this intensity.
+    // Back to the level the silver read correctly at. The softbox shapes in
+    // the map give the metal something to reflect; turning the whole thing up
+    // just made everything brighter, which is not the same as texture.
     scene.environmentIntensity = 0.55
     return () => {
       scene.environment = null
@@ -49,29 +93,7 @@ function StudioEnvironment() {
   return null
 }
 
-/** Warm lamp behind the cloth, pulsing with playback. */
-function SpeakerLamp({ live, levelRef }: { live: boolean; levelRef: React.RefObject<number> }) {
-  const ref = useRef<THREE.PointLight>(null)
-  useFrame((_, dt) => {
-    const l = ref.current
-    if (!l) return
-    // Toned down from the original: at full strength this read as a bright
-    // gold hotspot on the grille rather than a subtle warm glow behind it.
-    const target = live ? 0.3 + levelRef.current * 0.8 : 0
-    l.intensity = THREE.MathUtils.damp(l.intensity, target, 8, dt)
-  })
-  return (
-    <pointLight
-      ref={ref}
-      position={[0, D.speaker.y, D.plate.d / 2 + 0.35]}
-      color={PALETTE.amber}
-      intensity={0}
-      distance={2.6}
-    />
-  )
-}
-
-function Scene({ radio }: { radio: UseRadio }) {
+function Scene({ radio, reducedMotion }: { radio: UseRadio; reducedMotion: boolean }) {
   const live = radio.state.power !== 'off'
 
   return (
@@ -87,15 +109,10 @@ function Scene({ radio }: { radio: UseRadio }) {
       <directionalLight position={[3.5, 4, 5]} intensity={0.9} color="#fff6ec" />
       <directionalLight position={[-4, -2, 5]} intensity={0.18} color="#eef2f6" />
 
-      {/* Static — no pointer-parallax tilt, per the user's explicit request. */}
-      <group position={[UNIT_OFFSET_X, 0, 0]}>
+      <Rig reducedMotion={reducedMotion}>
+        <group position={[UNIT_OFFSET_X, UNIT_OFFSET_Y, 0]}>
         <RadioBody />
-        <ScreenPanel
-          state={radio.state}
-          meta={radio.meta}
-          levelRef={radio.levelRef}
-          setHost={radio.setHost}
-        />
+        <ScreenPanel state={radio.state} setHost={radio.setHost} />
         <ButtonStack
           live={live}
           booting={radio.state.power === 'booting'}
@@ -104,13 +121,14 @@ function Scene({ radio }: { radio: UseRadio }) {
           onPressUp={radio.pressUp}
         />
         <Cable />
-        <SpeakerLamp live={live} levelRef={radio.levelRef} />
-      </group>
+          <SpeakerRing live={live} levelRef={radio.levelRef} />
+        </group>
+      </Rig>
     </>
   )
 }
 
-export default function RadioScene({ radio, lowPower }: Props) {
+export default function RadioScene({ radio, lowPower, reducedMotion }: Props) {
   const dpr = useMemo<[number, number]>(() => (lowPower ? [1, 1.5] : [1, 2]), [lowPower])
 
   return (
@@ -122,14 +140,14 @@ export default function RadioScene({ radio, lowPower }: Props) {
       // working for a responsive, drop-in-anywhere container. A true
       // OrthographicCamera would need its zoom hand-recomputed against the
       // container's pixel size on every resize to avoid breaking that.
-      camera={{ position: [0, 0, 27.5], fov: 15 }}
+      camera={{ position: [0, 0, 37.2], fov: 15 }}
       gl={{ antialias: true, alpha: true, powerPreference: 'high-performance' }}
       onCreated={({ gl }) => {
         gl.toneMapping = THREE.ACESFilmicToneMapping
         gl.toneMappingExposure = 0.95
       }}
     >
-      <Scene radio={radio} />
+      <Scene radio={radio} reducedMotion={reducedMotion} />
     </Canvas>
   )
 }
