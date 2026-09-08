@@ -61,6 +61,44 @@ const CHILLI_RATIO = 203 / 113;
 const chilli = (w: number) => ({ w, h: Number((w / CHILLI_RATIO).toFixed(2)) });
 
 /**
+ * What a tomato actually measures on screen, and what the chillies are sized
+ * against.
+ *
+ * Not its box width. tomato.webp is 165x123 with the fruit occupying 126x95 of
+ * it -- 20px of transparent padding either side -- and `object-contain` fits
+ * that by HEIGHT into the 73x48 box, so the drawing lands 64.4u wide and the
+ * visible fruit is
+ *
+ *   48 * (126 / 123) = 49.17u
+ *
+ * across. The 73 is the box; the box was never the drawing.
+ *
+ * chili.webp has no padding at all -- its ink is the full 203x113 -- and the
+ * helper above builds a box at exactly the artwork's ratio, so a chilli's box
+ * width IS its visual width, with nothing subtracted. That is the entire
+ * discrepancy: the old `chilli(88)` drew 88u of chilli next to 49u of tomato,
+ * and read as nearly twice the vegetable.
+ *
+ * Measured off the files rather than eyeballed, so re-exporting either one with
+ * different padding is a number that moves here rather than a drift nobody
+ * catches.
+ */
+const TOMATO_VISUAL_W = Number((48 * (126 / 123)).toFixed(2));
+
+/**
+ * Every chilli, at the tomato's width.
+ *
+ * The composition carried two chilli sizes, 88 and 106, a fifth apart. Both are
+ * this now: the ask was parity with the tomato, and a chilli 20% over it still
+ * read as the bigger vegetable, which is the thing being fixed. To put the
+ * variation back, give the four `CHILLI_W_LG` sites their own constant at
+ * `TOMATO_VISUAL_W * (106 / 88)` -- the seating below derives from the height,
+ * so nothing else has to move.
+ */
+const CHILLI_W = TOMATO_VISUAL_W;
+const CHILLI_W_LG = CHILLI_W;
+
+/**
  * Garnishes rest ON the shelf floor: their box bottom lands just inside the
  * plank (which runs 223u to 231u of a 230u row at z-20) so the last few units
  * are swallowed and they read as sitting in the shelf rather than on it. The
@@ -75,20 +113,20 @@ const chilliY = (h: number, rotated = false) => Number((RESTS - h - (rotated ? 4
 const ROWS: Item[][] = [
   [
     { src: "tomato", x: -25, y: 179, w: 73, h: 48 },
-    { src: "chili", x: 303, y: chilliY(chilli(88).h, true), ...chilli(88), rotate: -172.89, flipY: true },
+    { src: "chili", x: 303, y: chilliY(chilli(CHILLI_W).h, true), ...chilli(CHILLI_W), rotate: -172.89, flipY: true },
     { src: "onion", x: 700.98, y: 177.33, w: 52.976, h: 49.153 },
-    { src: "chili", x: 925.01, y: chilliY(chilli(106).h, true), ...chilli(106), rotate: -171.18, flipY: true },
+    { src: "chili", x: 925.01, y: chilliY(chilli(CHILLI_W_LG).h, true), ...chilli(CHILLI_W_LG), rotate: -171.18, flipY: true },
   ],
   [
     { src: "tomato", x: 325, y: 177, w: 73, h: 48 },
-    { src: "chili", x: 660, y: chilliY(chilli(88).h), ...chilli(88) },
+    { src: "chili", x: 660, y: chilliY(chilli(CHILLI_W).h), ...chilli(CHILLI_W) },
     { src: "tomato", x: 1029.19, y: 177.59, w: 73, h: 48 },
   ],
   [
-    { src: "chili", x: -43, y: chilliY(chilli(88).h), ...chilli(88) },
+    { src: "chili", x: -43, y: chilliY(chilli(CHILLI_W).h), ...chilli(CHILLI_W) },
     { src: "onion", x: 337, y: 167, w: 64, h: 60, rotate: 180, flipY: true },
     { src: "tomato", x: 683.88, y: 179.29, w: 73, h: 48 },
-    { src: "chili", x: 949, y: chilliY(chilli(88).h), ...chilli(88) },
+    { src: "chili", x: 949, y: chilliY(chilli(CHILLI_W).h), ...chilli(CHILLI_W) },
     { src: "onion", x: 1029, y: 171, w: 64, h: 60 },
   ],
 ];
@@ -111,18 +149,18 @@ const ROWS: Item[][] = [
 const MOBILE_ROWS: Item[][] = [
   [
     { src: "tomato", x: -20, y: 179, w: 73, h: 48 },
-    { src: "chili", x: 252, y: chilliY(chilli(88).h, true), ...chilli(88), rotate: -172.89, flipY: true },
+    { src: "chili", x: 252, y: chilliY(chilli(CHILLI_W).h, true), ...chilli(CHILLI_W), rotate: -172.89, flipY: true },
     { src: "onion", x: 556, y: 177.33, w: 52.976, h: 49.153 },
   ],
   [
-    { src: "chili", x: -35, y: chilliY(chilli(88).h), ...chilli(88) },
+    { src: "chili", x: -35, y: chilliY(chilli(CHILLI_W).h), ...chilli(CHILLI_W) },
     { src: "tomato", x: 262, y: 177, w: 73, h: 48 },
-    { src: "chili", x: 545, y: chilliY(chilli(106).h, true), ...chilli(106), rotate: -171.18, flipY: true },
+    { src: "chili", x: 545, y: chilliY(chilli(CHILLI_W_LG).h, true), ...chilli(CHILLI_W_LG), rotate: -171.18, flipY: true },
   ],
   [
     { src: "onion", x: -12, y: 167, w: 64, h: 60, rotate: 180, flipY: true },
     { src: "tomato", x: 268, y: 179.29, w: 73, h: 48 },
-    { src: "chili", x: 540, y: chilliY(chilli(88).h), ...chilli(88) },
+    { src: "chili", x: 540, y: chilliY(chilli(CHILLI_W).h), ...chilli(CHILLI_W) },
   ],
 ];
 

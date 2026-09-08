@@ -8,7 +8,7 @@ import { VimeoEmbed } from "./VimeoEmbed";
 /** Doto sits 4% tight at every size in the design; Satoshi sits at 2%. */
 const EYEBROW = "font-doto text-fine tracking-[-0.04em] uppercase text-kitchen-brown-deep";
 
-function One({ block }: { block: Block }) {
+function One({ block, lead = false }: { block: Block; lead?: boolean }) {
   switch (block.type) {
     case "heading":
       return (
@@ -63,13 +63,15 @@ function One({ block }: { block: Block }) {
       );
 
     case "image":
-      return <StudyImage media={block.media} />;
+      return <StudyImage media={block.media} priority={lead} />;
 
     case "gallery":
       return (
         <div className="grid grid-cols-1 gap-[30px] sm:grid-cols-2">
-          {block.items.map((m) => (
-            <StudyImage key={m.src} media={m} />
+          {block.items.map((m, i) => (
+            // Only the first tile of a leading gallery: the rest are beside or
+            // below it and lazy-loading them is the point.
+            <StudyImage key={m.src} media={m} priority={lead && i === 0} />
           ))}
         </div>
       );
@@ -93,6 +95,21 @@ function One({ block }: { block: Block }) {
  * in the flex column, so the 30 gap is unaffected -- it is on the parent.
  */
 export function StudyBody({ blocks }: { blocks: Block[] }) {
+  /*
+   * The first block that draws a still, and the only one allowed to preload.
+   *
+   * Found rather than assumed to be block 0: every study opens on prose, so
+   * the lead image sits a few blocks down, and hard-coding an index would
+   * preload a paragraph on one study and the right picture on another.
+   *
+   * `loop` is excluded on purpose. Those are the multi-megabyte UI recordings,
+   * and preloading one would pull it into the critical path to save a pop-in
+   * on a file that should never be in flight before it is scrolled to.
+   */
+  const leadIndex = blocks.findIndex(
+    (b) => b.type === "image" || b.type === "gallery",
+  );
+
   return (
     <div className="flex flex-col gap-[30px]">
       {blocks.map((block, i) =>
@@ -103,7 +120,7 @@ export function StudyBody({ blocks }: { blocks: Block[] }) {
           <One key={i} block={block} />
         ) : (
           <Reveal key={i} on="view" kind="arrive">
-            <One block={block} />
+            <One block={block} lead={i === leadIndex} />
           </Reveal>
         ),
       )}

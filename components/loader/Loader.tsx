@@ -19,10 +19,14 @@ import { LoaderCount } from "./LoaderCount";
  * Measure before paint, or the room is painted once at its resting size and
  * then jumps out to full bleed on the next frame.
  */
-const useMeasureEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
+const useMeasureEffect =
+  typeof window === "undefined" ? useEffect : useLayoutEffect;
 
 /** What it takes to make the Window cover the viewport. */
 type Cover = { scale: number; x: number; y: number };
+
+/** Named once: the tile is both preloaded and painted, and they must match. */
+const WALL_TILE = "/assets/scene/wall-tile.webp";
 
 /**
  * The loading animation.
@@ -82,7 +86,8 @@ export function Loader() {
    * exact bug this replaced.
    */
   const claim = useRef<boolean | null>(null);
-  if (claim.current === null) claim.current = typeof window === "undefined" ? true : claimBoot();
+  if (claim.current === null)
+    claim.current = typeof window === "undefined" ? true : claimBoot();
   /*
    * Lifted into state so the claim stops being a ref read for everything
    * downstream. `skip` is consulted by five effects and the early return, and
@@ -115,6 +120,33 @@ export function Loader() {
    * seconds already.
    */
   const leaving = percent >= 100;
+
+  /**
+   * Whether the wall tile has arrived, so it can fade up rather than cut in.
+   *
+   * The browser gives no load event for a background-image, so the same file is
+   * fetched through an Image first -- it is one request either way, because the
+   * second consumer is served from cache.
+   *
+   * Settles on error too. A tile that 404s should leave the loader on flat
+   * purple, which is fine, rather than waiting on a fade that will never run.
+   *
+   * Starts false on the server and on the client's first render, so there is
+   * nothing here for hydration to disagree about.
+   */
+  const [tileReady, setTileReady] = useState(false);
+
+  useEffect(() => {
+    const img = new Image();
+    const settle = () => setTileReady(true);
+    img.onload = settle;
+    img.onerror = settle;
+    img.src = WALL_TILE;
+    return () => {
+      img.onload = null;
+      img.onerror = null;
+    };
+  }, []);
 
   /**
    * Reduced motion gets no loading screen, and neither does a second visit
@@ -236,39 +268,106 @@ export function Loader() {
   if (skip || gone) return null;
 
   return (
-    <div
-      ref={box}
-      data-loader
-      data-done={leaving || undefined}
-      data-measured={cover ? "" : undefined}
-      className="loader font-doto absolute inset-0 z-[70] bg-repeat uppercase"
-      style={{
-        backgroundImage: "url(/assets/scene/wall-tile.webp)",
-        // The Window's own tile size. Inside the Window, --u resolves against
-        // the same container the scene uses, so these match without arithmetic
-        // -- and because the whole Window scales, they shrink into place with
-        // everything else.
-        backgroundSize: "var(--wall-tile-size) auto",
-        opacity: leaving ? 0 : 1,
-        transition: leaving
-          ? "opacity var(--duration-drop) var(--ease-accelerate)"
-          : "none",
-        pointerEvents: leaving ? "none" : undefined,
-      }}
-    >
-      {/* Decoration behind the type, and only while there is something to wait
-          for -- a trail chasing the pointer across the handover muddies it. */}
-      <ImageTrail active={!leaving} />
-
+    <>
       {/*
+        The curtain: one flat purple sheet over the whole viewport, for the
+        frames before the cover has been measured.
+
+        The loader lives INSIDE the Window, and the Window only reaches full
+        bleed once `--boot-scale` is measured and `data-booting` is set. Both
+        happen in a layout effect, which runs after hydration -- and the
+        server's HTML has already painted by then. So the true first frame was
+        the Window at its resting size with the sidebar beside it: a purple
+        band down the left, tiles in a box to the right, and then a jump to
+        full bleed. `useLayoutEffect` cannot reach that frame, because React
+        is not running yet when it is drawn.
+
+        `fixed`, so it does not care where the Window is or how big it is, and
+        needs nothing measured to be correct. It is in the server markup --
+        `cover` is null there -- so it is painted with the document, and it
+        unmounts in the same commit that sets the cover, with no paint in
+        between for a seam to show through.
+      */}
+      {!cover && !leaving && (
+        <div
+          aria-hidden
+          className="pointer-events-none fixed inset-0 z-[80]"
+          style={{ backgroundColor: "var(--color-kitchen-purple)" }}
+        />
+      )}
+
+      <div
+        ref={box}
+        data-loader
+        data-done={leaving || undefined}
+        data-measured={cover ? "" : undefined}
+        className="loader font-doto absolute inset-0 z-[70] uppercase"
+        style={{
+          /*
+           * The wall UNDER the wall, so the loader is opaque on the very first
+           * paint.
+           *
+           * backgroundImage is a network request, and until it settles a div
+           * with only an image is transparent -- so the room behind it showed
+           * through and the first frames were the shelves standing on white,
+           * before the tile arrived and covered them. Nothing about the loader
+           * was late; it was drawn on time and had nothing to draw yet.
+           *
+           * kitchen-purple rather than a colour picked for this: the tile's own
+           * mean is #a07ff5 against the token's #9770ff, so the image landing on
+           * top of it is not a visible change. A colour cannot be late -- it is
+           * in the inline style of the server-rendered markup, so it paints with
+           * the document.
+           */
+          backgroundColor: "var(--color-kitchen-purple)",
+          opacity: leaving ? 0 : 1,
+          transition: leaving
+            ? "opacity var(--duration-drop) var(--ease-accelerate)"
+            : "none",
+          pointerEvents: leaving ? "none" : undefined,
+        }}
+      >
+        {/*
+        The tile itself, on its own layer so its opacity is independent of the
+        loader's. globals.css fades it in off `data-ready`.
+
+        First child, and everything below is painted over it: ImageTrail is
+        absolute and `.loader-compensate` is relative, so both win on DOM order
+        without needing a z-index.
+      */}
+        <div
+          data-wall
+          data-ready={tileReady || undefined}
+          aria-hidden
+          className="pointer-events-none absolute inset-0 bg-repeat"
+          style={{
+            backgroundImage: `url(${WALL_TILE})`,
+            // The Window's own tile size. Inside the Window, --u resolves against
+            // the same container the scene uses, so these match without arithmetic
+            // -- and because the whole Window scales, they shrink into place with
+            // everything else.
+            backgroundSize: "var(--wall-tile-size) auto",
+          }}
+        />
+
+        {/* Decoration behind the type, and only while there is something to wait
+          for -- a trail chasing the pointer across the handover muddies it. */}
+        <ImageTrail active={!leaving} />
+
+        {/*
         Counter-scale. The Window is blown up by --boot-scale, so without this
         every word in here is drawn at that size too. Both transitions share a
         duration and a curve, so the type holds its size while the room shrinks
         around it.
       */}
-      <div className="loader-compensate pointer-events-none relative h-full p-5 text-fine">
+        {/*
+          No counter-scaling wrapper any more. It existed to undo --boot-scale
+          for the one thing inside it, and the counter now portals to the body
+          and is positioned against the viewport, so there is nothing left in
+          the Window that needs the scale undone.
+        */}
         <LoaderCount percent={percent} />
       </div>
-    </div>
+    </>
   );
 }

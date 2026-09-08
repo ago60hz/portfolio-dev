@@ -490,21 +490,33 @@ body {
      Static. An earlier pass gave each digit its own rolling reel; it read as a
      different thing from the reference, which simply counts. */
   .count {
-    position: absolute;
-    bottom: calc(10 * var(--u));
-    left: calc(16 * var(--u));
+    /* FIXED, and a direct child of the body -- LoaderCount portals it there.
+       The loader is inside a Window that is scaled to cover the viewport and
+       overflows it on one axis, so `absolute` inside that box measured 16px
+       off edges that are not the screen's. See LoaderCount. */
+    position: fixed;
+    right: 16px;
+    bottom: 16px;
+    /* Above the loader (70) and the pre-measure curtain (80), so the count is
+       visible from the first frame it exists rather than only once the curtain
+       lifts. */
+    z-index: 90;
     color: var(--color-kitchen-red);
-    font-size: clamp(88px, 21vw, 300px);
+    font-size: 40px;
     line-height: 1;
-    /* Room for all three digits from the start.
+    /* Room for all three digits from the start, so the box does not resize
+       when the count gains one. Needs the tabular figures on the element.
 
-       Without it the box grows when the count reaches 100 and, at this size,
-       a third of the screen changes width in one frame. Left-aligned inside
-       the reserved space, so no digit already on screen ever moves: the number
-       only ever gains a glyph to its right. Needs the tabular figures on the
-       element to be worth anything. */
+       RIGHT-aligned, which is a reversal. While the number filled a third of
+       the screen it set from a fixed left edge and grew into the corner,
+       because at 300px a digit shifting sideways was the whole corner moving.
+       At 40px, anchored 16px off the edge, that trade inverts: left-aligning
+       inside a 3ch box would park the number ~48px from the edge for the whole
+       count and only bring it flush at 100, which is not the 16px constraint.
+       So it hugs the corner, and the two shifts it costs -- at 10 and at 100 --
+       are around 24px each and pass in a frame. */
     width: 3ch;
-    text-align: left;
+    text-align: right;
   }
 
   /* -- The boot ------------------------------------------------------------
@@ -552,28 +564,44 @@ body {
     overflow: clip;
   }
 
-  /* The loader's type would otherwise be drawn at --boot-scale along with
-     everything else. Both transitions share a duration and a curve, so the
-     type holds its size while the room shrinks around it.
+  /* `.loader-compensate` is gone. It undid --boot-scale for the loader's type,
+     which by the end meant the counter and nothing else -- and undoing a scale
+     applied about one origin with a scale about another cancels the size while
+     leaving the position wrong, which is what put the count 207px from an edge
+     it was told to sit 16px off. The counter is portalled to the body and
+     positioned against the viewport now, so there is no scale left to undo. */
 
-     Written the same way round as the Window's own cover: the compensation is
-     applied instantly while booting and only animates on the way back out.
-     With the transition on the booting state instead, the number visibly zoomed
-     into place at the top of every load, because the custom property is unset
-     for the first frame and the scale then animated from 1. */
-  .loader-compensate {
-    scale: 1;
-    transition: scale var(--duration-drop) var(--ease-smooth);
+  @media (prefers-reduced-motion: reduce) {
+    .kitchen-stage {
+      transition: none;
+    }
   }
 
-  html[data-booting] .loader-compensate {
-    scale: var(--boot-inv, 1);
-    transition: none;
+  /* -- The loader's wall ---------------------------------------------------
+     The tile fades up over the flat purple underneath it, rather than
+     appearing.
+
+     The purple is on `.loader` itself and is in the server-rendered markup, so
+     it is painted with the document; the tile is a network request and lands
+     whenever it lands. Before the colour existed the loader was transparent
+     until then and the room showed through -- the shelves standing on white
+     for the first frames. The colour fixed that, but the tile still arrived as
+     a hard cut, which is what this softens.
+
+     CSS owns the fade and the component only flips `data-ready`, for the same
+     reason `data-booting` drives the shrink: one declarative state change,
+     rather than an animation written imperatively over an element mid-load. */
+  .loader [data-wall] {
+    opacity: 0;
+    transition: opacity var(--duration-enter) var(--ease-smooth);
+  }
+
+  .loader [data-wall][data-ready] {
+    opacity: 1;
   }
 
   @media (prefers-reduced-motion: reduce) {
-    .kitchen-stage,
-    .loader-compensate {
+    .loader [data-wall] {
       transition: none;
     }
   }
@@ -938,7 +966,10 @@ body {
     background-image: url("/assets/poster/paper-texture.webp");
     background-size: cover;
     mix-blend-mode: multiply;
-    opacity: 0.5;
+    /* Was 0.5, which put a visible crumple across the card and competed with
+       the copy sitting on it. The texture is meant to say "printed sticker",
+       not to be looked at. */
+    opacity: 0.25;
   }
 }
 

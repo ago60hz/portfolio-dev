@@ -84,8 +84,13 @@ test.describe("the loader", () => {
         coversHeight: r.height >= window.innerHeight - 1,
         // The loader's ground is the Window's own tile at the Window's own
         // size -- no arithmetic, because they are the same element tree.
+        //
+        // Read off [data-wall], not [data-loader]. The tile moved onto its own
+        // layer inside the loader so it could fade up over the flat purple
+        // underneath as it arrives; [data-loader] now carries only that colour.
         loaderTile: parseFloat(
-          getComputedStyle(document.querySelector<HTMLElement>("[data-loader]")!).backgroundSize,
+          getComputedStyle(document.querySelector<HTMLElement>("[data-loader] [data-wall]")!)
+            .backgroundSize,
         ),
         sceneTile: parseFloat(
           getComputedStyle(document.querySelector<HTMLElement>(".kitchen-scene")!).backgroundSize,

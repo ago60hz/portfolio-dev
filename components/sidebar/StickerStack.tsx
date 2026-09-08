@@ -59,18 +59,22 @@ const BACK = { top: 32.15, scale: BEHIND };
 const LIFT_TOP = FRONT.top - 22;
 
 /**
- * One tilt per depth, fanning from positive through zero to negative.
+ * One tilt per depth, alternating either side of square.
  *
  * Frame 94 draws only two angles, +1 and -1, because it draws only two cards.
  * We carry eight in a single back slot, so two angles made everything behind
  * the top card land in exactly the same place -- a pile with nothing to see.
- * Fanning them is what makes the depth readable: each card's corners clear the
- * one in front by a few pixels, and the design's +1/-1 stays inside the range.
  *
- * The steps are deliberately uneven. An even ramp reads as a machine-made fan;
- * these were nudged so it reads as a stack somebody set down by hand.
+ * An earlier pass fanned them on a one-way ramp from +2.4 down to -3.4. This
+ * alternates instead: every card leans the opposite way to the one it is
+ * sitting on, which is what a stack of cards actually does when it is set down
+ * by hand, and it opens a wider gap between neighbours than a ramp does at the
+ * same angle -- so the depth reads with fewer cards showing.
  */
-const TILTS = [2.4, 1.6, 0.5, -0.4, -1.2, -2.1, -2.7, -3.4];
+const TILT_STEP = 2;
+const TILTS = Array.from({ length: 8 }, (_, depth) =>
+  depth % 2 === 0 ? TILT_STEP : -TILT_STEP,
+);
 
 const tilt = (depth: number) => TILTS[Math.min(depth, TILTS.length - 1)];
 
@@ -83,13 +87,20 @@ const tilt = (depth: number) => TILTS[Math.min(depth, TILTS.length - 1)];
  * single blur at this size reads as a grey halo rather than as height. Both
  * fade together, so depth is carried by the whole shadow and not by opacity
  * alone.
+ *
+ * Kept very light. The geometry does the work -- the drop and blur still fall
+ * away with depth, which is what says "lifted" -- while the opacities sit at
+ * roughly a third of what they were. At the old 0.3 the cast read as a grey
+ * band under a card on a pale sidebar, and eight of them stacked into a bruise;
+ * the alternating tilt already separates the cards, so the shadow no longer has
+ * to.
  */
 const SHADOWS = TILTS.map((_, depth) => {
   const t = depth / (TILTS.length - 1);
   const drop = 9 - 7.6 * t;
   const blur = 16 - 13.5 * t;
-  const cast = 0.3 - 0.22 * t;
-  const contact = 0.22 - 0.16 * t;
+  const cast = 0.1 - 0.075 * t;
+  const contact = 0.07 - 0.05 * t;
   return (
     `0 ${drop.toFixed(2)}px ${blur.toFixed(2)}px -4px rgba(0,0,0,${cast.toFixed(3)}), ` +
     `0 ${(drop / 4).toFixed(2)}px ${(blur / 5).toFixed(2)}px -2px rgba(0,0,0,${contact.toFixed(3)})`
@@ -113,11 +124,15 @@ const STRAIGHTEN = { duration: DURATION.state, ease: overshoot } as const;
  * The back card scales about its own centre, so its lowest point is
  * BACK.top + h x (1 + 0.824) / 2. Plus a pixel so nothing sits on the edge.
  *
- * Plus the fan: a card tilted 3.4 degrees drops its lower corner by about half
- * its width x sin(3.4), which at the widths this stack reaches is ~7px. Without
- * that allowance the deepest card's corner reaches into the accordions below.
+ * Plus the fan: a tilted card drops its lower corner by about half its width
+ * times sin(tilt). Without that allowance the deepest card's corner reaches
+ * into the accordions below.
+ *
+ * Derived from TILT_STEP rather than typed. It was 7, hand-measured against a
+ * 3.4 degree fan, and a stale constant here is a clipped corner nobody thinks
+ * to connect back to the angle -- so the angle is the only thing to change.
  */
-const TILT_BLEED = 7;
+const TILT_BLEED = Math.ceil((CARD.w / 2) * Math.sin((TILT_STEP * Math.PI) / 180));
 const STACK_HEIGHT =
   Math.ceil(BACK.top + (CARD.h * (1 + BEHIND)) / 2) + 1 + TILT_BLEED;
 

@@ -134,17 +134,27 @@ const FILES = {
   // Every one of these is FINAL artwork: the white frame and the layer's
   // rotation are already baked into the pixels. Do not re-apply either in CSS
   // -- that is what produced double frames and photos rotated twice.
-  'wall_gallery_photos/Rectangle 15.webp': 'gallery/rectangle-15.webp',
-  'wall_gallery_photos/Rectangle 16.webp': 'gallery/rectangle-16.webp',
-  'wall_gallery_photos/Rectangle 17.webp': 'gallery/rectangle-17.webp',
-  'wall_gallery_photos/Rectangle 18.webp': 'gallery/rectangle-18.webp',
+  /* v2: Praise's re-exports, roughly twice the pixels of the originals at the
+     same ratios (525-560 square against 269-287). The board doubles in size
+     between peek and reveal, and the first set was being upscaled at reveal. */
+  'wall_gallery_photos/v2/Rectangle 15.webp': 'gallery/rectangle-15.webp',
+  'wall_gallery_photos/v2/Rectangle 16.webp': 'gallery/rectangle-16.webp',
+  'wall_gallery_photos/v2/Rectangle 17.webp': 'gallery/rectangle-17.webp',
+  'wall_gallery_photos/v2/Rectangle 18.webp': 'gallery/rectangle-18.webp',
   'wall_gallery_photos/IMG_0953 1.webp': 'gallery/img-0953.webp',
   // The board itself (121:395 onward): brown ground, tan rules, drop shadow.
   // Supersedes the red CSS lattice that matched the older 90:297.
+  //
+  // grid.svg is kept mapped but no longer painted -- grid_BG.webp replaces it
+  // on the board. It is a photograph of the real surface where the SVG was a
+  // flat redraw of it, and at reveal the board is ~960u wide, which is where a
+  // flat fill starts looking like a fill.
   'wall_gallery_photos/grid.svg': 'gallery/grid.svg',
-  'wall_gallery_photos/poster.webp': 'gallery/poster.webp',
-  // Leading space is in the export's filename, not a typo.
-  'wall_gallery_photos/ vibe.webp': 'gallery/vibe.webp',
+  'wall_gallery_photos/grid_BG.webp': 'gallery/grid-bg.webp',
+  'wall_gallery_photos/v2/poster.webp': 'gallery/poster.webp',
+  // The v2 zip nests this one under a folder whose name ends in a space. Both
+  // the space and the capital are in the export, not typos.
+  'wall_gallery_photos/v2/Poster / vibe.webp': 'gallery/vibe.webp',
   // Praise's signature, closing the chef bio (1:3815).
   // NOTE: 'meet_the_chef_tools/Meet the Chef_bg.webp' is deliberately NOT
   // mapped. The portrait behind the bio was tried and dropped -- it read badly
@@ -192,13 +202,53 @@ const DIRS = [
   }],
 ]
 
+/**
+ * The exports that need compressing, keyed by destination.
+ *
+ * OPT-IN, and deliberately so. A blanket re-encode of every mapped file was
+ * tried first and is wrong: most of these were already tuned, and running an
+ * existing webp through the encoder again is generational loss for whatever it
+ * saves. It took `jodisco.webp` -- pixel art, kept as a bitmap precisely so the
+ * letterforms stay hard -- from 6.7KB to 5.9KB by softening the edges the file
+ * exists to preserve, and the can top from 48KB to 13KB.
+ *
+ * So: a plain copy by default, and this list for the ones measured to need it.
+ *
+ * `maxWidth` caps a source larger than anything that can be drawn from it. The
+ * board is 481u wide and reveal scales it 1.91, so ~920u -- a little over 1000
+ * CSS px at the unit sizes the scene reaches, and 2200 covers that at 2x. The
+ * export was 3678px and 4.6MB: a background nobody can see the detail of,
+ * costing more than every photograph on the board combined.
+ */
+const RE_ENCODE = {
+  'gallery/grid-bg.webp': { maxWidth: 2200 },
+  'gallery/rectangle-15.webp': {},
+  'gallery/rectangle-16.webp': {},
+  'gallery/rectangle-17.webp': {},
+  'gallery/rectangle-18.webp': {},
+  'gallery/poster.webp': {},
+  'gallery/vibe.webp': {},
+}
+
 const copied = []
 
 for (const [from, to] of Object.entries(FILES)) {
   const src = join(SRC, from)
   if (!existsSync(src)) { console.warn(`  MISSING  ${from}`); continue }
   await mkdir(dirname(join(OUT, to)), { recursive: true })
-  await cp(src, join(OUT, to))
+
+  const encode = RE_ENCODE[to]
+  if (encode) {
+    const img = sharp(src, { limitInputPixels: false })
+    const { width } = await img.metadata()
+    const cap = encode.maxWidth
+    await (cap && width > cap ? img.resize({ width: cap }) : img)
+      .webp({ quality: encode.quality ?? 82 })
+      .toFile(join(OUT, to))
+  } else {
+    await cp(src, join(OUT, to))
+  }
+
   copied.push(to)
 }
 

@@ -36,7 +36,18 @@ import { usePrefersReducedMotion } from "@/hooks/usePrefersReducedMotion";
  * rather than simply getting bigger.
  */
 const FRAME = { w: 481.321, h: 115.471 };
-const PEEK_TOP = 87;
+/**
+ * How far down the frame sits at peek, and so how little of it shows.
+ *
+ * Was 87, which put most of the board above the shelf edge -- enough that the
+ * prints read as a gallery already and there was less reason to open it. 123
+ * hides roughly half of what showed: the top of the board and the upper slice
+ * of the prints, which is a hint rather than a display.
+ *
+ * Only the peek moves. REVEAL_LIFT is measured from the frame's own top, so
+ * the revealed position is unchanged.
+ */
+const PEEK_TOP = 123;
 const REVEAL_LIFT = 198;
 const REVEAL_SCALE = 1.91;
 
@@ -117,6 +128,21 @@ function Pinned({ item, index, booted }: { item: PinnedItem; index: number; boot
         width: `calc(${item.w} * var(--u))`,
         height: `calc(${item.h} * var(--u))`,
         backgroundImage: `url(${item.src})`,
+        /*
+         * x -2, y 0, blur 8, #000 50% -- each photo throwing a shadow to its
+         * left, so the board reads as lit from the right and the prints sit
+         * above the surface rather than being printed on it.
+         *
+         * `drop-shadow()` and not `box-shadow`: these are background images
+         * inside a `bg-contain` span, so the span's box is not the picture's
+         * edge -- a box-shadow would outline the slot, not the print. The
+         * filter follows the alpha, which is the shape actually on screen.
+         *
+         * The cost the board avoids does not apply here: these do not carry
+         * the peek/reveal transform, so the filter rasterises once and is then
+         * only moved by the ancestor.
+         */
+        filter: `drop-shadow(calc(-2 * var(--u)) 0 calc(8 * var(--u)) rgb(0 0 0 / 0.5))`,
       }}
     />
   );
@@ -262,21 +288,35 @@ export function WallGallery() {
               // 12 design units, so it scales with the board rather than
               // flattening out as the frame grows.
               borderRadius: "calc(12 * var(--u))",
-              backgroundImage: "url(/assets/gallery/grid.svg)",
+              // grid_BG, the photographed surface, in place of grid.svg's flat
+              // redraw of it. 3678x883 is 4.166:1 against the board's 4.168:1,
+              // so `100% 100%` stretches it by under a thousandth and there is
+              // nothing to correct for.
+              backgroundImage: "url(/assets/gallery/grid-bg.webp)",
               // Fill the whole box, border included. `background-size` resolves
               // against the POSITIONING area, which defaults to the padding box
               // -- so with a border the grid was sized smaller than the box it
               // paints into and left a bare strip along the bottom edge.
               backgroundOrigin: "border-box",
               backgroundSize: "100% 100%",
-              // Lifts the board off the wall. Design units, so the shadow
-              // scales with the board instead of hardening into a thin line as
-              // the frame grows -- and a `box-shadow` rather than a
-              // `drop-shadow()` filter, because the grid is a background image
-              // and a filter would have to rasterise the whole box every frame
-              // of the peek/reveal transform.
-              boxShadow: `0 calc(2 * var(--u)) calc(6 * var(--u)) calc(-1 * var(--u)) rgb(0 0 0 / 0.28),
-                          0 calc(0.5 * var(--u)) calc(1.5 * var(--u)) 0 rgb(0 0 0 / 0.18)`,
+              /*
+               * Both shadows off the board's own layer style, in order: the
+               * inner one sinks the surface into the frame, the outer lifts
+               * the frame off the wall. The outer casts UPWARD (y -4), which
+               * is what reads as a board hung proud of a wall lit from above
+               * rather than a card lying on it.
+               *
+               *   inner  x 0  y  4  blur  4  #000 24%
+               *   drop   x 0  y -4  blur 16  #000 24%
+               *
+               * Design units, not px, so both scale with the board rather than
+               * hardening into a line as the frame grows -- and `box-shadow`
+               * rather than a `drop-shadow()` filter, because the grid is a
+               * background image and a filter would rasterise the whole box on
+               * every frame of the peek/reveal transform.
+               */
+              boxShadow: `inset 0 calc(4 * var(--u)) calc(4 * var(--u)) 0 rgb(0 0 0 / 0.24),
+                          0 calc(-4 * var(--u)) calc(16 * var(--u)) 0 rgb(0 0 0 / 0.24)`,
             }}
           />
         </span>
