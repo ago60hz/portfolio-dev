@@ -7,11 +7,16 @@
 # Neither is imported by the app.
 design/
 
-# Tests, and the config that drives them. Vercel does not run them; CI would
-# check out the repo itself.
-tests/
+# The e2e suite and its visual baselines -- the snapshots are ~8MB of PNG and
+# Vercel does not run Playwright.
+#
+# ONLY tests/e2e/. The unit helpers next to it (tests/setup.ts,
+# tests/fakeAudioContext.ts) stay: SoundToggle.test.tsx and engine.test.ts sit
+# beside the code they test, so they ship whatever this file says, and
+# excluding their import would leave a dangling specifier for `next build` to
+# type-check and fail on. tsconfig already drops tests/e2e, so this matches it.
+tests/e2e/
 playwright.config.ts
-vitest.config.ts
 
 # The radio package's local Vite preview. `src/index.ts` is the real entry and
 # stays -- these three are only used by `npm run dev` inside that workspace.
