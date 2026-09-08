@@ -84,10 +84,21 @@ export default defineConfig({
   projects,
   // Production build, never the dev server — dev-mode timing and bundle size
   // both lie, and this suite exists to catch exactly those.
+  //
+  // `reuseExistingServer` used to be `!process.env.CI`, which quietly undid
+  // that. Playwright cannot tell a dev server from a production one; it only
+  // checks whether `url` answers. So with `next dev` already on :3000 the whole
+  // suite ran against dev and said nothing, and the results were wrong in both
+  // directions: it invented fourteen failures that do not exist in production
+  // (the dev overlay's markup, and per-request rendering instead of the
+  // build-time prerender), and it would just as happily hide a real one.
+  //
+  // Always false. A local run pays for its own build, which is the price of the
+  // sentence above this one being true.
   webServer: {
     command: "npm run build && npm run start",
     url: "http://localhost:3000",
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,
     timeout: 240_000,
   },
 });

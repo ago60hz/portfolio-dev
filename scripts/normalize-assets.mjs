@@ -121,7 +121,11 @@ const FILES = {
   'tag_images/comment_heart.svg': 'poster/note-heart.svg',
   'tag_images/comment_heart_2.svg': 'poster/note-heart-2.svg',
   'tag_images/cute_chef_heart.svg': 'poster/vibe-heart.svg',
-  'tag_images/cute_chef_heart_2.svg': 'poster/vibe-heart-2.svg',
+  /* cute_chef_heart_2.svg is NOT copied. Nothing renders it, and the export is
+     broken: a 61x45 viewBox wrapping one full-resolution bitmap as a base64
+     data URI, which is 2.3MB -- a thousand times its 2.2KB sibling, which is
+     real vector. SVGs bypass next/image, so it would have shipped raw.
+     Re-export it as vector from Figma before adding this line back. */
   'tag_images/unrefyned.webp': 'poster/revenue-photo.webp',
   'tag_images/tyreek_houston.webp': 'poster/testimonial-photo.webp',
   // The wall gallery's pinned photos (90:296). Exported by LAYER NAME, which

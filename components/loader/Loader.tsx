@@ -83,8 +83,20 @@ export function Loader() {
    */
   const claim = useRef<boolean | null>(null);
   if (claim.current === null) claim.current = typeof window === "undefined" ? true : claimBoot();
-  // eslint-disable-next-line react-hooks/refs -- the lazy-init read, see above
-  const skip = reduced || !claim.current;
+  /*
+   * Lifted into state so the claim stops being a ref read for everything
+   * downstream. `skip` is consulted by five effects and the early return, and
+   * the rule traces a derived value back to its source -- so leaving it as
+   * `!claim.current` made every one of those a reported violation, sixteen in
+   * all, and `npm run lint` could never be green.
+   *
+   * The lazy init above still has to be the ref: this useState takes the value
+   * already computed, not `() => claimBoot()`, so Strict Mode's second pass
+   * cannot spend the boot a second time.
+   */
+  // eslint-disable-next-line react-hooks/refs -- reading what the line above just initialised
+  const [claimed] = useState(claim.current);
+  const skip = reduced || !claimed;
 
   const [percent, setPercent] = useState(0);
   const [cover, setCover] = useState<Cover | null>(null);
