@@ -1,0 +1,23 @@
+# Excluded from the deploy upload. None of it is read at build time.
+#
+# Most of the heavy source art is already out of git, so this is mainly about
+# the things that are legitimately tracked but only ever run on a laptop.
+
+# The design source of truth and the tokens the e2e suite asserts against.
+# Neither is imported by the app.
+design/
+
+# Tests, and the config that drives them. Vercel does not run them; CI would
+# check out the repo itself.
+tests/
+playwright.config.ts
+vitest.config.ts
+
+# The radio package's local Vite preview. `src/index.ts` is the real entry and
+# stays -- these three are only used by `npm run dev` inside that workspace.
+radio_component/index.html
+radio_component/src/demo.tsx
+radio_component/src/demo.css
+
+# Working copy drafts.
+case-study-copy/

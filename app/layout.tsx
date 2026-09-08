@@ -15,7 +15,7 @@ export const metadata: Metadata = {
    * points at the sharer's own machine and the image silently fails to load.
    *
    * Set NEXT_PUBLIC_SITE_URL to the live origin in the host's environment --
-   * see LAUNCH.md. It is deliberately not defaulted to a guessed domain,
+   * see `.env.example`. It is deliberately not defaulted to a guessed domain,
    * because a wrong absolute origin fails silently where localhost at least
    * fails obviously.
    */
@@ -47,7 +47,7 @@ export const metadata: Metadata = {
     locale: "en_US",
   },
   twitter: {
-    // `app/opengraph-image.png` doubles as the Twitter image by convention.
+    // `app/opengraph-image.jpg` doubles as the Twitter image by convention.
     card: "summary_large_image",
     title: TITLE,
     description: DESCRIPTION,
