@@ -68,7 +68,7 @@ export const WORKS: Work[] = [
     tags: ["shipped", "brand-design", "ai-assisted"],
     labelTags: [tag("Shipped")],
     cta: "more-view",
-    href: "https://preview.eitherway.ai/a0c65593-3668-49aa-954a-59435853f726/",
+    href: "https://katsusando.vercel.app/",
     moreHref:
       "https://www.linkedin.com/posts/praisefabilola_despite-how-hard-it-was-to-go-from-zero-experience-activity-7481072935533711360-_Zxr",
     image: img("katsusando"),
