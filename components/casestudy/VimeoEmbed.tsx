@@ -37,6 +37,27 @@ import { MediaFrame, fitClass } from "./MediaFrame";
 const VIMEO_EMBEDS_ENABLED = true;
 
 /**
+ * How long a player gets to say it loaded before we assume it never will.
+ *
+ * Vimeo is blocked outright on some networks -- every Indonesian ISP, under the
+ * Kominfo filter, since 2014, plus assorted corporate and school proxies. There
+ * the request is answered by a block page instead, and the iframe shows the
+ * browser's "player.vimeo.com refused to connect". An iframe gives no error
+ * event for that, and its `load` fires for the block page too, so neither can
+ * tell a broken frame from a working one.
+ *
+ * What CAN tell them apart: a real player posts `{"event":"ready"}` to its
+ * parent the moment it boots, unasked -- observed in Chrome on the production
+ * domain. No block page ever will. So no ready within this window means the
+ * frame is swapped back for the poster and a link out.
+ *
+ * Generous on purpose. A slow connection that would have played is a worse
+ * outcome to cut off than a blocked one is to wait on, since the blocked reader
+ * is looking at the poster-coloured frame either way.
+ */
+const READY_TIMEOUT_MS = 8000;
+
+/**
  * A Vimeo clip, muted and looping.
  *
  * The parameter string is copied exactly from Praise's Framer site, because
@@ -70,9 +91,11 @@ export function VimeoEmbed({
   height: number;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const frame = useRef<HTMLIFrameElement>(null);
   const reduced = usePrefersReducedMotion();
   const [inView, setInView] = useState(false);
   const [asked, setAsked] = useState(false);
+  const [unreachable, setUnreachable] = useState(false);
 
   useEffect(() => {
     const el = ref.current;
@@ -92,6 +115,42 @@ export function VimeoEmbed({
       ? `https://player.vimeo.com/video/${id}?muted=1&autoplay=1&autopause=0&controls=0&loop=1`
       : null;
 
+  // Wait for this player's own ready message, or give up. See READY_TIMEOUT_MS.
+  useEffect(() => {
+    if (!src) return;
+
+    const onMessage = (e: MessageEvent) => {
+      if (e.origin !== "https://player.vimeo.com") return;
+      // Up to five players share this window, so only our own counts.
+      if (e.source !== frame.current?.contentWindow) return;
+      let data: unknown = e.data;
+      if (typeof data === "string") {
+        try {
+          data = JSON.parse(data);
+        } catch {
+          return;
+        }
+      }
+      if ((data as { event?: string } | null)?.event === "ready") {
+        clearTimeout(timer);
+        window.removeEventListener("message", onMessage);
+      }
+    };
+
+    const timer = setTimeout(() => {
+      window.removeEventListener("message", onMessage);
+      setUnreachable(true);
+    }, READY_TIMEOUT_MS);
+
+    window.addEventListener("message", onMessage);
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("message", onMessage);
+    };
+  }, [src]);
+
+  const showFrame = src && !unreachable;
+
   return (
     <figure ref={ref}>
       <MediaFrame width={width} height={height}>
@@ -99,8 +158,9 @@ export function VimeoEmbed({
           className={`relative ${fitClass(width, height)}`}
           style={{ aspectRatio: `${width} / ${height}` }}
         >
-          {src ? (
+          {showFrame ? (
             <iframe
+              ref={frame}
               src={src}
               title={title}
               allow="autoplay; fullscreen; picture-in-picture"
@@ -118,7 +178,20 @@ export function VimeoEmbed({
         </div>
       </MediaFrame>
 
-      {VIMEO_EMBEDS_ENABLED && reduced && !asked && (
+      {/* The player never booted: the poster is back in its place, and this is
+          the way through for anyone who can reach vimeo.com some other way. */}
+      {unreachable && (
+        <a
+          href={`https://vimeo.com/${id}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="font-doto mt-2 inline-block text-fine tracking-[-0.04em] text-kitchen-brown-deep underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kitchen-ink"
+        >
+          Video didn’t load here. Watch “{title}” on Vimeo
+        </a>
+      )}
+
+      {VIMEO_EMBEDS_ENABLED && reduced && !asked && !unreachable && (
         <button
           type="button"
           onClick={() => setAsked(true)}
