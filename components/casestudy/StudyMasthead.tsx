@@ -3,16 +3,19 @@ import { MaskWords } from "@/components/motion/MaskWords";
 import { Reveal } from "@/components/motion/Reveal";
 import { beat } from "@/lib/motion";
 import type { CaseStudy } from "@/content/case-studies";
+import { ToolText } from "./ToolText";
 
 /** Doto sits 4% tight at every size in the design; Satoshi sits at 2%. */
 const DOTO = "font-doto tracking-[-0.04em]";
 
-function Meta({ label, value }: { label: string; value?: string }) {
+function Meta({ label, value, slug }: { label: string; value?: string; slug?: string }) {
   if (!value) return null;
   return (
     <div className="flex flex-col gap-2">
       <dt className={`${DOTO} text-fine text-kitchen-brown-deep`}>{label}</dt>
-      <dd className="text-body leading-prose font-medium text-kitchen-ink">{value}</dd>
+      <dd className="text-body leading-prose font-medium text-kitchen-ink">
+        {slug ? <ToolText text={value} slug={slug} /> : value}
+      </dd>
     </div>
   );
 }
@@ -88,7 +91,7 @@ export function StudyMasthead({ study }: { study: CaseStudy }) {
       <dl className="grid grid-cols-1 gap-x-2 gap-y-4 sm:grid-cols-2">
         <Meta label="Role" value={study.role} />
         <Meta label="Client" value={study.client} />
-        <Meta label="Scope" value={study.scope} />
+        <Meta label="Scope" value={study.scope} slug={study.slug} />
         <Meta label="Timeline" value={study.timeline} />
       </dl>
       </Reveal>

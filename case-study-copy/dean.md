@@ -14,14 +14,14 @@ invent anything beyond that.
 ## Masthead
 
 - **title:** Fresh luxury. Time as the product.
-- **hook** (Gochi Hand pull quote — a real line from the work, never invented): "Actually enjoy the cool down." The tagline works like a permission slip.
+- **hook** (Gochi Hand pull quote — a real line from the work, never invented): "Actually enjoy the cool down" is not a tagline, it is a permission slip.
 - **role:** Brand identity, AI creative direction
 - **scope:** Midjourney, Nano Banana.
 
 ## Section: Background
 
 - **heading** — railLabel `Background`: For studios that outgrew generic scheduling
-- **prose:** DEAN sells time to businesses where time is the entire experience: Pilates studios, spas, wellness spaces stuck with scheduling software built for everyone and no one. I aimed the direction at fresh luxury: calm, unhurried, priced like it's worth protecting.
+- **prose:** DEAN sells time to businesses where time is the entire experience: Pilates studios, spas, wellness spaces stuck with scheduling software built for everyone and no one. Working through IJODISCO, I aimed the direction at fresh luxury: calm, unhurried, priced like it's worth protecting.
 - **vimeo** (`dean/showcase`) — title: (see `vimeo.generated.ts`)
 
 ## Section: The work

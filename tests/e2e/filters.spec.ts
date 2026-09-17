@@ -1,8 +1,8 @@
 import { expect, test } from "@playwright/test";
 
-/** The three works tagged product-design in content/works.ts, which is also
- *  exactly what 4:1656 draws as remaining. */
-const PRODUCT_DESIGN = ["MetaMask", "Bonadocs", "PassportMonie"];
+/** The works tagged product-design in content/works.ts. 4:1656 drew three;
+ *  Axia Africa, which took Fagbemi Studios' place, is the fourth. */
+const PRODUCT_DESIGN = ["MetaMask", "Axia Africa", "Bonadocs", "PassportMonie"];
 
 /**
  * The homepage is not ready the moment `load` fires: the wall gallery's radio

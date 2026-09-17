@@ -35,6 +35,9 @@ export type Block =
    */
   | { type: "subheading"; text: string }
   | { type: "prose"; text: string }
+  /** A short bulleted run, for constraints or steps that read as a set rather
+   *  than as a sentence. Keep items to a line or two; anything longer is prose. */
+  | { type: "list"; items: string[] }
   | { type: "quote"; text: string; attribution?: string }
   | { type: "metrics"; items: { value: string; label: string }[] }
   | { type: "image"; media: Media }
@@ -53,7 +56,10 @@ export type Block =
    */
   | { type: "loop"; media: Loop }
   /** Vimeo, chromeless and muted. `id` is the numeric id, not the URL. */
-  | { type: "vimeo"; id: string; poster: string; title: string; width: number; height: number };
+  | { type: "vimeo"; id: string; poster: string; title: string; width: number; height: number }
+  /** A Google Drive video in Drive's preview player. `id` is the file id from
+   *  the share link, and the file must be shared "Anyone with the link". */
+  | { type: "drive"; id: string; title: string; width: number; height: number };
 
 export type CaseStudy = {
   /** Must match a `Work.slug`. Asserted by content/case-studies/index.test.ts. */

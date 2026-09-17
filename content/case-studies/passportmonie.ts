@@ -62,8 +62,11 @@ export const passportmonie: CaseStudy = {
     },
     { type: "image", media: MEDIA["passportmonie/12-icon-set"] },
     { type: "image", media: MEDIA["passportmonie/11-in-product"] },
-    { type: "image", media: MEDIA["passportmonie/09-onboarding"] },
-    { type: "image", media: MEDIA["passportmonie/10-product-screens"] },
+    { type: "image", media: MEDIA["passportmonie/13-onboarding-flow"] },
+    { type: "image", media: MEDIA["passportmonie/14-home"] },
+    { type: "image", media: MEDIA["passportmonie/15-account-setup"] },
+    { type: "image", media: MEDIA["passportmonie/16-fund-account"] },
+    { type: "image", media: MEDIA["passportmonie/17-pay-with-passport"] },
     { type: "image", media: MEDIA["passportmonie/08-merch"] },
 
     { type: "heading", id: "reflection", railLabel: "Reflection", text: "The brief came before the prompt" },

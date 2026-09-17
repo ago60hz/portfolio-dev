@@ -3,12 +3,14 @@ import { Reveal } from "@/components/motion/Reveal";
 import type { Block } from "@/content/case-studies";
 import { StudyImage } from "./StudyImage";
 import { StudyLoop } from "./StudyLoop";
+import { ToolText } from "./ToolText";
+import { DriveEmbed } from "./DriveEmbed";
 import { VimeoEmbed } from "./VimeoEmbed";
 
 /** Doto sits 4% tight at every size in the design; Satoshi sits at 2%. */
 const EYEBROW = "font-doto text-fine tracking-[-0.04em] uppercase text-kitchen-brown-deep";
 
-function One({ block, lead = false }: { block: Block; lead?: boolean }) {
+function One({ block, slug, lead = false }: { block: Block; slug?: string; lead?: boolean }) {
   switch (block.type) {
     case "heading":
       return (
@@ -37,7 +39,14 @@ function One({ block, lead = false }: { block: Block; lead?: boolean }) {
 
     case "prose":
       return (
-        <p className="text-body leading-prose text-pretty text-kitchen-ink">{block.text}</p>
+        <p className="text-body leading-prose text-pretty text-kitchen-ink"><ToolText text={block.text} slug={slug} /></p>
+      );
+
+    case "list":
+      return (
+        <ul className="list-disc space-y-1 pl-5 text-body leading-prose text-pretty text-kitchen-ink marker:text-kitchen-brown-deep">
+          {block.items.map((item) => <li key={item}><ToolText text={item} slug={slug} /></li>)}
+        </ul>
       );
 
     case "quote":
@@ -81,6 +90,9 @@ function One({ block, lead = false }: { block: Block; lead?: boolean }) {
 
     case "vimeo":
       return <VimeoEmbed {...block} />;
+
+    case "drive":
+      return <DriveEmbed {...block} />;
   }
 }
 
@@ -94,7 +106,7 @@ function One({ block, lead = false }: { block: Block; lead?: boolean }) {
  * Each block arrives as it is scrolled to. The Reveal wrapper is a plain div
  * in the flex column, so the 30 gap is unaffected -- it is on the parent.
  */
-export function StudyBody({ blocks }: { blocks: Block[] }) {
+export function StudyBody({ blocks, slug }: { blocks: Block[]; slug?: string }) {
   /*
    * The first block that draws a still, and the only one allowed to preload.
    *
@@ -117,10 +129,10 @@ export function StudyBody({ blocks }: { blocks: Block[] }) {
         // block-level arrival on top -- two entrances on one element read as a
         // stutter rather than as emphasis.
         block.type === "heading" ? (
-          <One key={i} block={block} />
+          <One key={i} block={block} slug={slug} />
         ) : (
           <Reveal key={i} on="view" kind="arrive">
-            <One block={block} lead={i === leadIndex} />
+            <One block={block} slug={slug} lead={i === leadIndex} />
           </Reveal>
         ),
       )}

@@ -31,10 +31,21 @@ export const MEDIA = {
   "passportmonie/10-product-screens": {"src":"/assets/case-studies/passportmonie/10-product-screens.webp","alt":"Product screens with wallet card backgrounds and setup banners","width":3840,"height":2160},
   "passportmonie/11-in-product": {"src":"/assets/case-studies/passportmonie/11-in-product.webp","alt":"AI illustration in the live product: wallet card, setup banners, and the Carter Bridge on clouds","width":1724,"height":1211},
   "passportmonie/12-icon-set": {"src":"/assets/case-studies/passportmonie/12-icon-set.webp","alt":"The icon set, themed to the same material palette","width":1724,"height":1089},
+  "passportmonie/13-onboarding-flow": {"src":"/assets/case-studies/passportmonie/13-onboarding-flow.webp","alt":"Onboarding: get started, join with your legal name, and pick a country","width":1600,"height":1200},
+  "passportmonie/14-home": {"src":"/assets/case-studies/passportmonie/14-home.webp","alt":"The home screen: wallet balance on the illustrated card, setup progress and recent transactions","width":1600,"height":1200},
+  "passportmonie/15-account-setup": {"src":"/assets/case-studies/passportmonie/15-account-setup.webp","alt":"Finishing account setup: the verification checklist and the magic-link email screen","width":1600,"height":1200},
+  "passportmonie/16-fund-account": {"src":"/assets/case-studies/passportmonie/16-fund-account.webp","alt":"Paying for a travel eSIM from a wallet, and topping up a card with the exchange rate shown","width":1600,"height":1200},
+  "passportmonie/17-pay-with-passport": {"src":"/assets/case-studies/passportmonie/17-pay-with-passport.webp","alt":"Paying a booking by bank transfer: payment details, confirmation, and success","width":1600,"height":1200},
   "dean/01-logo-mockups": {"src":"/assets/case-studies/dean/01-logo-mockups.webp","alt":"DEAN logo mockups across physical applications","width":2880,"height":1620},
   "fagbemi-studios/01-brand-reel": {"src":"/assets/case-studies/fagbemi-studios/01-brand-reel.webp","alt":"Fagbemi Studios identity across renders, photography and the quote card","width":3840,"height":2160},
   "fagbemi-studios/02-exhibition": {"src":"/assets/case-studies/fagbemi-studios/02-exhibition.webp","alt":"Light and Shadow: an exhibition poster in garnet and gold, the monogram set over an oval portrait","width":2160,"height":2700},
   "fagbemi-studios/03-work-in-progress": {"src":"/assets/case-studies/fagbemi-studios/03-work-in-progress.webp","alt":"The artist at the easel, a portrait in progress under available light","width":2160,"height":2700},
+  "axia-africa/01-onboarding": {"src":"/assets/case-studies/axia-africa/01-onboarding.webp","alt":"Choosing a course during onboarding, on desktop and mobile","width":1600,"height":1200},
+  "axia-africa/02-course-page": {"src":"/assets/case-studies/axia-africa/02-course-page.webp","alt":"A course page: levels, lessons, a practice assistant and the student grade","width":1600,"height":1200},
+  "axia-africa/03-illustrations": {"src":"/assets/case-studies/axia-africa/03-illustrations.webp","alt":"Four Midjourney illustrations: students on a rooftop, a terrace class around a laptop, a retro computer desk, a classroom facing a data wall","width":1600,"height":1200},
+  "axia-africa/04-video-lesson": {"src":"/assets/case-studies/axia-africa/04-video-lesson.webp","alt":"An AI talking-head lesson with a motion-designed code explainer","width":1600,"height":1200},
+  "axia-africa/05-video-page": {"src":"/assets/case-studies/axia-africa/05-video-page.webp","alt":"The lesson page: talking-head video, AI summary with a timestamped transcript, and a follow-up assistant","width":1600,"height":1200},
+  "axia-africa/06-schedule-and-quiz": {"src":"/assets/case-studies/axia-africa/06-schedule-and-quiz.webp","alt":"A mentor schedule of live classes with out-of-office dates, beside a quiz page","width":1600,"height":1200},
 } as const satisfies Record<string, Media>;
 
 export const LOOPS = {

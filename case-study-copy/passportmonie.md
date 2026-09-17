@@ -4,7 +4,7 @@
 - **client:** PassportMonie
 - **sector:** Fintech
 - **chipLabel:** PassportMonie Design
-- **card blurb** (`content/works.ts`): Art direction, illustration, and UI system for a travel-payments app.
+- **card blurb** (`content/works.ts`): Art direction and product design consulting for a travel-payments app, across two engagements.
 
 ## Masthead
 
@@ -16,7 +16,7 @@
 ## Section: Background
 
 - **heading** — railLabel `Background`: A payments app for people who are going somewhere
-- **prose:** PassportMonie moves money for people about to travel, and the whole direction came from one sentence: make financial infrastructure feel like the start of a trip.
+- **prose:** PassportMonie moves money for people about to travel. Through IJODISCO, the whole direction came from one sentence: make financial infrastructure feel like the start of a trip.
 - **image alt** (`passportmonie/01-app-icon`): The PassportMonie app icon over a textured gradient
 
 ## Section: Direction
@@ -48,3 +48,8 @@
 
 - **heading** — railLabel `Reflection`: The brief came before the prompt
 - **prose:** The references, the palette, and the tone pillars existed before I generated a single image. That order is the entire point: I'd already made the decisions, the AI only executed them. That's why the output could ship.
+
+## Section: Later
+
+- **heading** — railLabel `Later`: A second engagement, this time for the product
+- **prose:** In August 2025, PassportMonie brought me back for the product itself. Working as a Product Design Consultant through IJODISCO, I re-architected the wallet flows: funding, verification, card actions. Task completion time dropped by roughly 35%. I led design on the multi-country transaction systems too, cutting cross-border failure rates by 27% and reducing support tickets tied to payment errors. The money-movement journeys used to be fragmented across separate flows. I consolidated them into one predictable model that runs across web and mobile.

@@ -65,6 +65,14 @@ const STUDY_ART = {
     'product slides/Product Screens': ['10-product-screens', 'Product screens with wallet card backgrounds and setup banners'],
     '731d70400729539ef46aff37d1f6c19': ['11-in-product', 'AI illustration in the live product: wallet card, setup banners, and the Carter Bridge on clouds'],
     '8c534d605a156769c5bf6f3f44ffc54': ['12-icon-set', 'The icon set, themed to the same material palette'],
+    // Praise's larger close-ups of the product flows. They supersede 09 and 10,
+    // whose phones are too small to read at column width. Kept in their own
+    // folder so 'Onboarding' cannot match the older product slides export.
+    'product closeups/Onboarding': ['13-onboarding-flow', 'Onboarding: get started, join with your legal name, and pick a country'],
+    'product closeups/Homepage': ['14-home', 'The home screen: wallet balance on the illustrated card, setup progress and recent transactions'],
+    'product closeups/Incomplete': ['15-account-setup', 'Finishing account setup: the verification checklist and the magic-link email screen'],
+    'product closeups/Fund account': ['16-fund-account', 'Paying for a travel eSIM from a wallet, and topping up a card with the exchange rate shown'],
+    'product closeups/Pay with Passport': ['17-pay-with-passport', 'Paying a booking by bank transfer: payment details, confirmation, and success'],
   },
   // One sheet each. An earlier pass cut these into their cells so individual
   // mockups would be legible; Praise wanted the sheets kept whole, so they run
@@ -78,6 +86,16 @@ const STUDY_ART = {
     // full name because both carry a double space Finder will not preserve.
     'Exhibition': ['02-exhibition', 'Light and Shadow: an exhibition poster in garnet and gold, the monogram set over an oval portrait'],
     'Work in Progress': ['03-work-in-progress', 'The artist at the easel, a portrait in progress under available light'],
+  },
+  // Praise's own exports, named by screen rather than hashed. Quiz.png carries
+  // the mentor schedule as well, which is why it sits in the scheduling section.
+  'axia-africa': {
+    'Onboarding': ['01-onboarding', 'Choosing a course during onboarding, on desktop and mobile'],
+    'Course Page': ['02-course-page', 'A course page: levels, lessons, a practice assistant and the student grade'],
+    'Illustrations': ['03-illustrations', 'Four Midjourney illustrations: students on a rooftop, a terrace class around a laptop, a retro computer desk, a classroom facing a data wall'],
+    'Video Lesson': ['04-video-lesson', 'An AI talking-head lesson with a motion-designed code explainer'],
+    'Video Page': ['05-video-page', 'The lesson page: talking-head video, AI summary with a timestamped transcript, and a follow-up assistant'],
+    'Quiz': ['06-schedule-and-quiz', 'A mentor schedule of live classes with out-of-office dates, beside a quiz page'],
   },
 }
 
@@ -177,6 +195,9 @@ const DIRS = [
   // Larger covers (712x400) for the next-case-study footer, where the 534x300
   // can artwork was being upscaled.
   ['works/bigger_sizes', 'covers', (n) => n.replace(/_/g, '-')],
+  // Third-party tool logos for the inline badges in case study prose, fetched
+  // from each tool's own site favicon and cut to 64px rounded tiles.
+  ['tool_logos', 'tool-logos', (n) => n],
   // Tool icons redrawn for the sand background. Held in their own directory
   // until the background change lands, so the purple build keeps working.
   /*

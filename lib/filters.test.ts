@@ -55,7 +55,7 @@ describe("partitionWorks", () => {
   it("matches the four works Praise tagged AI Assisted", () => {
     const slugs = partitionWorks(WORKS, "ai-assisted").matched.map((w) => w.slug);
     expect(slugs.sort()).toEqual(
-      ["dean", "fagbemi-studios", "katsusando", "passportmonie"].sort(),
+      ["axia-africa", "dean", "katsusando", "passportmonie"].sort(),
     );
   });
 });

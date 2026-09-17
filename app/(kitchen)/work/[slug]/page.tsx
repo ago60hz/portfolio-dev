@@ -60,7 +60,7 @@ export default async function StudyPage({ params }: Params) {
           <article className="mx-auto w-full max-w-[519px]">
             <StudyMasthead study={study} />
             <div className="pt-[30px]">
-              <StudyBody blocks={study.blocks} />
+              <StudyBody blocks={study.blocks} slug={study.slug} />
             </div>
             {next && (
               // The last thing in the article arrives like everything above it.

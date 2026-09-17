@@ -18,7 +18,7 @@ Note in source: a showreel. Copy is Praise's from the Coda doc, essentially uned
 ## Section: Background
 
 - **heading** — railLabel `Background`: Work that carries weight instead of announcing it
-- **prose:** Fagbemi Studios is a fine art practice. The work sits with pain and memory, unresolved. The brand needed the same restraint: hint at the weight.
+- **prose:** Fagbemi Studios is a fine art practice. The work sits with pain and memory, unresolved. Working through IJODISCO, I gave the brand the same restraint it needed: hint at the weight.
 
 ## Section: The work
 

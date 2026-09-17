@@ -84,6 +84,7 @@ describe("case study content", () => {
         const text = [
           "text" in b ? b.text : "",
           b.type === "quote" ? (b.attribution ?? "") : "",
+          b.type === "list" ? b.items.join(" ") : "",
           b.type === "metrics" ? b.items.map((i) => `${i.value} ${i.label}`).join(" ") : "",
         ].join(" ");
         expect(text, `${study.slug}: em dash in body copy`).not.toMatch(/[—–]/);
@@ -130,6 +131,7 @@ describe("case study content", () => {
         if (b.type === "gallery") for (const m of b.items) expect(m.width * m.height).toBeGreaterThan(0);
         if (b.type === "loop") expect(b.media.width * b.media.height).toBeGreaterThan(0);
         if (b.type === "vimeo") expect(b.width * b.height).toBeGreaterThan(0);
+        if (b.type === "drive") expect(b.width * b.height).toBeGreaterThan(0);
       }
     }
   });

@@ -3,7 +3,7 @@ import { metamask } from "./metamask";
 import { bonadocs } from "./bonadocs";
 import { passportmonie } from "./passportmonie";
 import { dean } from "./dean";
-import { fagbemiStudios } from "./fagbemi-studios";
+import { axiaAfrica } from "./axia-africa";
 
 /**
  * The five works with a case study in this version.
@@ -22,23 +22,24 @@ import { fagbemiStudios } from "./fagbemi-studios";
  *   metamask        1046 words   5 sections, 8 subheads, metrics, quote
  *   bonadocs         799 words   5 sections, 6 subheads, 16 visuals, metrics
  *   passportmonie    306 words   4 sections, 12 visuals -- a heavy reel
- *   fagbemi-studios  215 words   2 sections, 3 visuals, quote
+ *   axia-africa      840 words   5 sections, 9 subheads, 6 visuals, list
  *   dean             164 words   2 sections, 1 sheet
  *
  * MetaMask leads over Bonadocs on the strength of the writing, which is what
  * a reading order should follow; Bonadocs carries more pictures but a third
  * less argument.
  *
- * Dean before Fagbemi Studios is Praise's call, not the measurement's -- the
- * two are within fifty words of each other and this matches the shelf, which
- * is the order a visitor has already been shown.
+ * Praise's call overrides that for the last two changes on the shelf: Axia
+ * Africa took Bonadocs' place in the top row, and Bonadocs moved down to the
+ * slot Fagbemi Studios left. This list follows the shelf, so the footer never
+ * contradicts the order a visitor has already been shown.
  */
 export const CASE_STUDIES: CaseStudy[] = [
   metamask,
-  bonadocs,
+  axiaAfrica,
   passportmonie,
   dean,
-  fagbemiStudios,
+  bonadocs,
 ];
 
 export const studyBySlug = (slug: string) =>
