@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { flushSync } from "react-dom";
 import { usePathname } from "next/navigation";
 import { useEntranceReady } from "@/hooks/useEntranceReady";
 import { useIsMobile } from "@/hooks/useIsMobile";
@@ -49,6 +50,7 @@ const DOCK_SM = { width: 70, height: 85, right: 8, bottom: 0 };
 const RISE_MS = 420;
 
 type Box = { left: number; top: number; width: number; height: number };
+type Size = { width: number; height: number };
 
 export function RadioDock() {
   const pathname = usePathname();
@@ -75,6 +77,24 @@ export function RadioDock() {
   );
   const host = useRef<HTMLDivElement>(null);
   const [box, setBox] = useState<Box | null>(null);
+  /**
+   * The size the dock is actually laid out at. It trails `box` on purpose.
+   *
+   * Peek to reveal nearly doubles the slot (99x120 to 190x229 at 1440). Handing
+   * that straight to the layout box resized the WebGL canvas mid-glide: R3F
+   * reallocates the drawing buffer and re-sizes the canvas a frame or two after
+   * its container, so the radio stalled in place and then popped to its new
+   * size while the board around it was still easing. The earlier fix, snapping
+   * the box, only moved that pop to the start.
+   *
+   * So the glide carries the size change as a compositor scale, in lockstep
+   * with the board, and the real size is swapped in once the glide has
+   * finished -- one buffer reallocation, at a moment when nothing is moving and
+   * the scale it replaces draws exactly the same box.
+   */
+  const [rest, setRest] = useState<Size | null>(null);
+  /** True for the one commit that swaps scale for size, so it does not ease. */
+  const [snapping, setSnapping] = useState(false);
   const [mounted, setMounted] = useState(false);
   /**
    * Which study the dock has finished rising on.
@@ -152,7 +172,12 @@ export function RadioDock() {
         const anchor = document.querySelector("[data-radio-anchor]")!;
         // The anchor for the reveal, the parent for anything that reflows the
         // room around it.
-        ro = new ResizeObserver(place);
+        // Committed synchronously. An observer callback runs after layout but
+        // before paint, in the same frame the board starts its transform; a
+        // normal state update would commit on the next frame instead, and
+        // that one frame of lag is a visible gap on the steep middle of the
+        // smooth curve. flushSync starts both glides on the same frame.
+        ro = new ResizeObserver(() => flushSync(place));
         ro.observe(anchor);
         ro.observe(parent);
       }
@@ -173,6 +198,68 @@ export function RadioDock() {
   }, [onStudy, ready, place]);
 
   /**
+   * Settle the laid-out size onto the target once the glide is over.
+   *
+   * "Over" is the transition's own clock, not ours. A timer set to the token
+   * duration was tried and was wrong under load: the radio's WebGL keeps the
+   * main thread busy, a transition only starts on the next produced frame, and
+   * the timer fired mid-glide -- swapping the size while the scale was still
+   * half-applied, which dipped the radio to half size and popped it back.
+   *
+   * So this waits on the running transform transition's `finished` promise,
+   * which resolves when the browser has actually drawn its last frame. An
+   * interrupted glide rejects it and re-runs this effect for the new target;
+   * under reduced motion there is no transition and it resolves at once.
+   *
+   * The swap itself is atomic: transitions off, the new size and scale(1)
+   * committed and flushed to style in the same task, transitions back on. The
+   * visible box never changes across it, so nothing eases and nothing jumps.
+   */
+  useEffect(() => {
+    if (onStudy || !box) return;
+    if (rest && rest.width === box.width && rest.height === box.height) return;
+    const el = host.current;
+    const next = { width: box.width, height: box.height };
+    let cancelled = false;
+
+    // First placement: there is no scale to remove, so no transition to cut --
+    // and cutting one here would also cut the fade-in.
+    if (!rest || !el) {
+      queueMicrotask(() => {
+        if (!cancelled) setRest(next);
+      });
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    // getAnimations() flushes style, so the transition this commit started is
+    // already in the list.
+    const glides = el
+      .getAnimations()
+      .filter((a) => (a as CSSTransition).transitionProperty === "transform");
+
+    Promise.all(glides.map((a) => a.finished)).then(
+      () => {
+        if (cancelled) return;
+        flushSync(() => {
+          setSnapping(true);
+          setRest(next);
+        });
+        // Force the no-transition style to apply before turning it back on.
+        el.getBoundingClientRect();
+        flushSync(() => setSnapping(false));
+      },
+      // Cancelled by a newer glide; the effect has already re-run for it.
+      () => {},
+    );
+
+    return () => {
+      cancelled = true;
+    };
+  }, [onStudy, box, rest]);
+
+  /**
    * The box is SNAPPED and the travel is a transform.
    *
    * Transitioning `width` and `height` meant the radio's box changed size on
@@ -184,10 +271,13 @@ export function RadioDock() {
    */
   const dock = isMobile ? DOCK_SM : DOCK;
   const size = {
-    width: box?.width ?? dock.width,
-    height: box?.height ?? dock.height,
+    width: rest?.width ?? box?.width ?? dock.width,
+    height: rest?.height ?? box?.height ?? dock.height,
   };
   const anchored = onStudy ? dock : { left: 0, top: 0, ...size };
+  // How far the laid-out box is from the slot it is gliding to. 1 at rest.
+  const scaleX = box ? box.width / size.width : 1;
+  const scaleY = box ? box.height / size.height : 1;
 
   if (narrow) return null;
 
@@ -202,13 +292,16 @@ export function RadioDock() {
         transform:
           onStudy || !box
             ? "translate3d(0, 0, 0)"
-            : `translate3d(${box.left}px, ${box.top}px, 0)`,
+            : `translate3d(${box.left}px, ${box.top}px, 0) scale(${scaleX}, ${scaleY})`,
+        // The slot's top-left is what the anchor reports, so scale from it.
+        transformOrigin: "0 0",
         opacity: mounted && (onStudy ? risen : box !== null) ? 1 : 0,
         // Smooth, and the room's own state duration: this is the glide across
         // the gallery, and it has to match the board it is travelling with.
-        transition: reduced
-          ? "none"
-          : "transform var(--duration-max) var(--ease-smooth), opacity var(--duration-enter) var(--ease-smooth)",
+        transition:
+          reduced || snapping
+            ? "none"
+            : "transform var(--duration-max) var(--ease-smooth), opacity var(--duration-enter) var(--ease-smooth)",
       }}
     >
       {/*

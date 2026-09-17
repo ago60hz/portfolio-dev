@@ -48,6 +48,22 @@ const FRAME = { w: 481.321, h: 115.471 };
  * the revealed position is unchanged.
  */
 const PEEK_TOP = 123;
+
+/**
+ * The band's design height, and why the board is placed from its BOTTOM.
+ *
+ * The band grows to absorb whatever height the Window has beyond 884u -- any
+ * viewport taller than the design's aspect, where width binds --u and leaves
+ * slack below the shelves. PEEK_TOP is measured in the 156u band, so pinning
+ * the frame at `top: 123u` held it to the band's top edge while the floor moved
+ * away: at 1600x1150 the band was 433px against 173px and the whole board sat
+ * clear of the floor instead of hanging under it.
+ *
+ * Measuring the same offset up from the floor gives exactly 123u when the band
+ * is at its design height, and keeps the board on the floor at every aspect.
+ * The reveal is a transform off this box, so it follows for free.
+ */
+const FLOOR_BAND = 156;
 const REVEAL_LIFT = 198;
 const REVEAL_SCALE = 1.91;
 
@@ -218,10 +234,23 @@ export function WallGallery() {
       ref={ref}
       data-wall-gallery
       data-revealed={revealed || undefined}
-      className={`absolute -translate-x-1/2 cursor-pointer ${revealed ? "z-50" : "z-30"}`}
+      className="absolute -translate-x-1/2 cursor-pointer"
       style={{
+        /*
+         * Raised at once on the way up, lowered only once the board has landed.
+         * Dropping to z-30 at the start of a dismiss put the still-enlarged
+         * board behind the shelf lips (z-40) for the whole shrink -- it visibly
+         * slid under the glass. z-index interpolates as an integer, so a zero
+         * duration with a delay is a clean, frame-exact deferred switch.
+         */
+        zIndex: revealed ? 50 : 30,
+        transition: reduced
+          ? "none"
+          : revealed
+            ? "z-index 0s"
+            : "z-index 0s linear var(--duration-max)",
         left: "50%",
-        top: `calc(${PEEK_TOP} * var(--u))`,
+        top: `calc(100% - ${FLOOR_BAND - PEEK_TOP} * var(--u))`,
         width: `calc(${FRAME.w} * var(--u))`,
         height: `calc(${FRAME.h} * var(--u))`,
       }}

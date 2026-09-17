@@ -27,7 +27,16 @@ export function FilterOverlay() {
   return (
     <div
       aria-hidden
-      className={`absolute inset-0 bg-kitchen-ink transition-opacity duration-(--duration-state) ease-(--ease-smooth) motion-reduce:transition-none ${revealed ? "z-[45] pointer-events-auto" : "z-25 pointer-events-none"}`}
+      // The depth changes with the reveal, and on the way down it must wait for
+      // the fade. Dropping to z-25 at the start of a dismiss put the cans in
+      // front of a dim that was still at half strength: they snapped bright
+      // while the wall behind them faded, a visible pop. The z-index switch is
+      // deferred by the fade's own duration; going up it is immediate.
+      className={`absolute inset-0 bg-kitchen-ink motion-reduce:transition-none ${
+        revealed
+          ? "z-[45] pointer-events-auto [transition:opacity_var(--duration-state)_var(--ease-smooth),z-index_0s]"
+          : "z-25 pointer-events-none [transition:opacity_var(--duration-state)_var(--ease-smooth),z-index_0s_linear_var(--duration-state)]"
+      }`}
       style={{ opacity }}
     />
   );

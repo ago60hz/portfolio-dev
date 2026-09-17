@@ -93,7 +93,12 @@ export function RadioSlot({ width, height }: { width: number; height: number }) 
           // the bottom edge on purpose, and the package's WebGL-less fallback,
           // which is a flat 222x125px box far wider than this 125u slot.
           data-radio-slot
-          className="relative overflow-clip"
+          // The canvas fills the slot whatever R3F last measured. R3F writes
+          // the canvas's CSS size inline a frame or two after its container
+          // resizes; for those frames the radio drew at its old size inside
+          // the new box -- a visible pop right after the dock settles.
+          // Stretching the last frame's buffer across them is invisible.
+          className="relative overflow-clip [&_canvas]:h-full! [&_canvas]:w-full!"
           // Real pixels, and a real size rather than a transform. R3F measures
           // with getBoundingClientRect, so a scaled ancestor makes it size the
           // drawing buffer to the scaled rect and then set that as the canvas's
