@@ -1122,15 +1122,31 @@ body {
     position: absolute;
     /* Under the header, not over it: the strip carries the switch, and the
        layer is sized to the visible Window rather than to the scene so the
-       globe sits in the middle of what is actually on screen. Same floor as
-       the header's own height. */
-    inset: max(var(--header-h), 32px) 0 0 0;
+       globe sits in the middle of what is actually on screen. The top is the
+       header's MEASURED height (published by Header as --header-real), with
+       the token as the fallback for the first frame.
+
+       Plus the Window's own stroke on every side -- 1px, 1px at the sides and
+       2px along the bottom. Chrome positions this layer from the Window's
+       BORDER box rather than its padding box (measured: the layer's rect was
+       identical to the Window's), so `inset: 0` put the layer's edge on the
+       outside of the stroke and every picture that reached an edge painted
+       over it. Insetting by the border is right in either reading: where a
+       browser does use the padding box it costs a hairline of paper, and the
+       pictures still sit behind the frame. */
+    inset:
+      calc(var(--header-real, max(var(--header-h), 32px)) + 1px)
+      1px 2px 1px;
     z-index: 30;
     /* Deep enough that a tile crossing the near pole does not balloon. At the
        sphere's 200u radius a 900px perspective gives about 1.3x between the
        far and near faces, which is the depth the reference shows. */
     perspective: calc(900 * var(--u));
     overflow: hidden;
+    /* `overflow` alone is not trusted to hold the tiles: each one on
+       `preserve-3d` is composited on its own layer, and `clip-path` clips the
+       flattened result of the whole subtree, which nothing inside can escape. */
+    clip-path: inset(0);
   }
 
   /* The turntable. One transform, so the pan and the spin have to share it --

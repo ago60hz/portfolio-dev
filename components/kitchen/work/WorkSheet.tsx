@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
 import type { Work } from "@/content/works";
+import { SheetHero, usePreloadSheetArt } from "./SheetHero";
 import { WorkTag } from "./WorkTag";
 import { isExternal, viewHref } from "./WorkCtas";
 
@@ -16,9 +17,11 @@ import { isExternal, viewHref } from "./WorkCtas";
  * popover's pills use -- so the two surfaces cannot disagree about where a can
  * goes.
  *
- * The layout follows the sheet conventions a phone already knows: a grab
- * handle, one hero, a tight block of copy, and the action last and full width
- * where the thumb is. Specifically:
+ * The layout follows the sheet conventions a phone already knows: one hero, a
+ * tight block of copy, and the action last and full width where the thumb is.
+ * There is no grab handle. The primitive draws it as a white pill on a purple
+ * surface, which read as a stray bar rather than an affordance, and the whole
+ * sheet swipes down to close without one. Specifically:
  *
  * - CONCENTRIC RADIUS. The hero's corner is the sheet's corner minus the 16px
  *   of padding between them, so the two curves stay parallel instead of the
@@ -42,8 +45,10 @@ export function WorkSheet({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  usePreloadSheetArt(work);
+
   return (
-    <Drawer open={open && !!work} onOpenChange={onOpenChange} showSwipeHandle>
+    <Drawer open={open && !!work} onOpenChange={onOpenChange}>
       <DrawerContent
         className="overscroll-contain border-t border-kitchen-ink bg-kitchen-surface"
         style={{
@@ -51,25 +56,28 @@ export function WorkSheet({
           // at this size reads as a grey band under the edge.
           boxShadow:
             "0 -1px 2px rgb(20 8 40 / 0.10), 0 -8px 24px rgb(20 8 40 / 0.18), 0 -24px 56px rgb(20 8 40 / 0.14)",
+          // The strip the primitive paints under the sheet so a drag past the
+          // top never shows the page behind it. Its default is the shadcn
+          // popover colour -- white -- which appeared as a white bar under a
+          // purple sheet the moment it was pulled up.
+          ["--drawer-bleed-background" as string]: "var(--color-kitchen-surface)",
         }}
       >
         {work && (
           <>
             <DrawerTitle className="sr-only">{work.title}</DrawerTitle>
 
-            <div className="flex flex-col gap-4 px-4 pt-1 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+            {/* 16 on top now, matching the sides: the handle used to supply
+                the space above the hero, and without it the hero's corner has
+                to sit the same distance from the sheet's as it does at the
+                sides or the two radii stop being concentric. */}
+            <div className="flex flex-col gap-4 px-4 pt-4 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
               <span
-                className="relative block w-full overflow-clip border border-kitchen-ink"
+                className="relative block w-full overflow-clip border border-kitchen-ink bg-kitchen-paper"
                 // Sheet radius (24) less the 16 of padding beside it.
                 style={{ borderRadius: 8, aspectRatio: "712 / 400" }}
               >
-                <Image
-                  src={work.image}
-                  alt={work.title}
-                  fill
-                  sizes="100vw"
-                  className="select-none object-cover"
-                />
+                <SheetHero src={work.image} alt={work.title} />
               </span>
 
               {/* One block: mark, name, blurb, tags. Grouped tightly so it

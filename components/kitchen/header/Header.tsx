@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { motion } from "motion/react";
 import { useEntranceReady } from "@/hooks/useEntranceReady";
 import { useRevealProps } from "@/components/motion/Reveal";
@@ -30,12 +31,37 @@ import { GalleryToggle } from "./GalleryToggle";
  */
 export function Header() {
   const booted = useEntranceReady();
+  const ref = useRef<HTMLDivElement>(null);
+
+  /*
+   * Publish the strip's REAL height for the gallery to sit under.
+   *
+   * The token says 38u with a 32px floor, but the contents push past it on a
+   * phone -- the split button has its own 22px floor inside 7u of padding --
+   * so a layer positioned from the token started under this strip's bottom
+   * rule and pictures slid over the line. Measured with a ResizeObserver's
+   * `borderBoxSize`, which is fractional and untransformed: `offsetHeight`
+   * rounds (and rounding down is exactly the overlap again), and
+   * `getBoundingClientRect` carries the boot's cover scale.
+   */
+  useEffect(() => {
+    const el = ref.current;
+    const stage = el?.closest<HTMLElement>(".kitchen-stage");
+    if (!el || !stage) return;
+    const ro = new ResizeObserver(([entry]) => {
+      const h = entry.borderBoxSize?.[0]?.blockSize ?? el.offsetHeight;
+      stage.style.setProperty("--header-real", `${h}px`);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   return (
     // The strip animates itself rather than sitting in a Reveal wrapper: the
     // scene column sizes this as a flex child, and an extra div between them
     // changes what 38u is measured against.
     <motion.div
+      ref={ref}
       {...useRevealProps("slide-top", booted, bootDelay("header"))}
       // Sticky, so the switch is always within reach. Below lg the room is
       // taller than its Window and scrolls, and a strip that scrolled away

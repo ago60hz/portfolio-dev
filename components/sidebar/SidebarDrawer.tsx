@@ -37,7 +37,7 @@ export function SidebarDrawer() {
   }, [isMobile, setDrawerOpen]);
 
   return (
-    <Drawer open={drawerOpen} onOpenChange={setDrawerOpen} showSwipeHandle>
+    <Drawer open={drawerOpen} onOpenChange={setDrawerOpen}>
       {/*
         The logotype rather than the word "Menu".
         It is the one control always on screen on a phone, so it does the work
@@ -72,13 +72,27 @@ export function SidebarDrawer() {
         the head Cheff" simply pushed the rest out of view. The sheet owns the
         scrolling now and the Sidebar is a plain column inside it.
       */}
-      <DrawerContent className="flex h-[92dvh] flex-col overscroll-contain border-t border-kitchen-ink bg-kitchen-surface">
+      {/*
+        A full page, not a sheet. `h-dvh` alone is not enough: the drawer
+        primitive caps a vertical sheet at `100dvh - 6rem` through
+        --drawer-content-max-height, so the cap is lifted here too. No top
+        radius and no handle either -- a white pill on purple read as a stray
+        bar, the page still swipes down to close, and the X below is the
+        explicit way out. The bleed under it is painted the surface colour,
+        because its default is the shadcn popover white.
+      */}
+      <DrawerContent
+        className="flex h-dvh flex-col overscroll-contain rounded-none! border-t-0 bg-kitchen-surface"
+        style={{
+          ["--drawer-content-max-height" as string]: "100dvh",
+          ["--drawer-bleed-background" as string]: "var(--color-kitchen-surface)",
+        }}
+      >
         <DrawerTitle className="sr-only">Profile and filters</DrawerTitle>
 
-        {/* An explicit way out. The drag handle is discoverable on iOS and
-            much less so on Android, and this sheet is tall enough that the
-            room behind it is not an obvious tap target. */}
-        <div className="flex shrink-0 justify-end px-2 pt-1">
+        {/* The way out, now the only visible one. Clear of the notch: at full
+            height the top of the page is under the status bar. */}
+        <div className="flex shrink-0 justify-end px-2 pt-[max(0.5rem,env(safe-area-inset-top))]">
           <button
             type="button"
             onClick={() => setDrawerOpen(false)}
