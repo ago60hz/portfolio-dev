@@ -1,9 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
-import { animate, frame, motionValue, type AnimationPlaybackControls } from "motion/react";
+import { useCallback, useEffect, useRef, type RefObject } from "react";
 import { wrapOffset, type Slot } from "@/lib/globe";
-import { SPRING } from "@/lib/motion";
 
 /**
  * Scrolling the wall, endlessly, in any direction.
@@ -14,11 +12,14 @@ import { SPRING } from "@/lib/motion";
  * never grows, scrolling costs the same at any distance, and the lattice stays
  * exact -- a tile always lands where its neighbour would have been.
  *
- * The wheel moves a TARGET and `SPRING.wall` chases it. That is the house rule
- * for interruptible travel (see lib/motion.ts): every wheel event retargets the
- * spring from its current velocity, so a trackpad flick keeps travelling after
- * the fingers lift and the wall settles a touch past its mark before easing
- * back. Nothing here invents a curve of its own.
+ * The wheel moves a TARGET and the wall eases toward it on one continuous
+ * curve: every frame it closes the same fraction of the distance that is left.
+ * That is an exponential ease-out, and its one property that matters is that it
+ * never restarts. A new wheel event only moves the destination, so a run of
+ * notches or a trackpad flick reads as a single glide rather than a series of
+ * separate moves -- which is exactly what the spring it replaced could not do:
+ * retargeted on every notch, it arrived, overshot and settled once per notch,
+ * and the wall stepped. No overshoot, no bounce, just the slowing arrival.
  *
  * The listener is attached by hand rather than with `onWheel`, because React
  * registers wheel handlers passively at the root and a passive listener cannot
@@ -40,6 +41,16 @@ import { SPRING } from "@/lib/motion";
  */
 const WHEEL_GAIN = 1.8;
 
+/**
+ * How quickly the wall catches up with the wheel: the time constant of the
+ * ease-out. Each 180ms closes about 63% of what is left, so a notch is most of
+ * the way there in a third of a second and fully settled a little over half a
+ * second later. Frame-rate independent, so a 120Hz screen glides the same.
+ */
+const EASE_MS = 180;
+/** Below this, in scene units, the wall has arrived and the loop stops. */
+const REST = 0.05;
+
 export function useSpreadScroll(
   layerRef: RefObject<HTMLElement | null>,
   spinRef: RefObject<HTMLDivElement | null>,
@@ -52,30 +63,26 @@ export function useSpreadScroll(
   /** Called on every gesture, so the wall knows it is still being looked at. */
   onActivity: () => void,
   /**
-   * Arrive immediately instead of springing.
+   * Arrive immediately instead of easing.
    *
-   * The spring IS motion the reader did not ask for -- the wall carries on
-   * after the gesture stops and settles past its mark. Under
+   * The glide IS motion the reader did not ask for -- the wall carries on after
+   * the gesture stops. Under
    * `prefers-reduced-motion` the scroll lands where it was put, which is the
    * rule the rest of the kitchen follows: no movement, not less of it.
    */
   reduced: boolean,
 ) {
-  const [x] = useState(() => motionValue(0));
-  const [y] = useState(() => motionValue(0));
+  const pos = useRef({ x: 0, y: 0 });
   const target = useRef({ x: 0, y: 0 });
   const wraps = useRef<{ x: number; y: number }[]>([]);
-  const running = useRef<AnimationPlaybackControls[]>([]);
-  /** Bumped per gesture, so a spring that has been superseded cannot end one. */
-  const generation = useRef(0);
+  const raf = useRef(0);
   /** True once a touch has travelled far enough to be a drag, not a tap. */
   const dragged = useRef(false);
 
   const apply = useCallback(() => {
     const spin = spinRef.current;
     if (!spin) return;
-    const px = x.get();
-    const py = y.get();
+    const { x: px, y: py } = pos.current;
     spin.style.setProperty("--pan-x", px.toFixed(2));
     spin.style.setProperty("--pan-y", py.toFixed(2));
 
@@ -89,19 +96,7 @@ export function useSpreadScroll(
       if (was.x !== wx) el.style.setProperty("--wx", (was.x = wx).toFixed(2));
       if (was.y !== wy) el.style.setProperty("--wy", (was.y = wy).toFixed(2));
     });
-  }, [periods.periodX, periods.periodY, slots, spinRef, tileRefs, x, y]);
-
-  // Both axes change on the same frame, so the render step runs `apply` once
-  // for the pair rather than once for each.
-  useEffect(() => {
-    const schedule = () => frame.render(apply);
-    const offX = x.on("change", schedule);
-    const offY = y.on("change", schedule);
-    return () => {
-      offX();
-      offY();
-    };
-  }, [apply, x, y]);
+  }, [periods.periodX, periods.periodY, slots, spinRef, tileRefs]);
 
   /*
    * `data-moving` is written by hand, not held in React state.
@@ -117,35 +112,39 @@ export function useSpreadScroll(
   );
 
   const stop = useCallback(() => {
-    running.current.forEach((a) => a.stop());
-    running.current = [];
+    cancelAnimationFrame(raf.current);
+    raf.current = 0;
   }, []);
 
-  /** Send both axes to the current target, on the wall's spring. */
+  /** Ease toward the current target; a no-op if a glide is already running. */
   const glide = useCallback(() => {
     setMoving(true);
     if (reduced) {
       stop();
-      x.jump(target.current.x);
-      y.jump(target.current.y);
+      pos.current = { ...target.current };
+      apply();
       return;
     }
-    const mine = ++generation.current;
-    // NOT stopped first. Starting an animation on a value supersedes the one
-    // already running on it, and going through `stop()` on the way throws away
-    // the velocity the spring is meant to inherit -- which is the difference
-    // between a wall that keeps gliding under a flick and one that restarts
-    // from nothing on every wheel event.
-    running.current = [
-      animate(x, target.current.x, SPRING.wall),
-      animate(y, target.current.y, SPRING.wall),
-    ];
-    // Only the gesture that is still the current one may hand the tiles their
-    // transitions back; a spring stopped by the next flick must not.
-    Promise.all(running.current).then(() => {
-      if (generation.current === mine) setMoving(false);
-    });
-  }, [reduced, setMoving, stop, x, y]);
+    if (raf.current) return;
+    let last = performance.now();
+    const tick = (now: number) => {
+      const k = 1 - Math.exp(-(now - last) / EASE_MS);
+      last = now;
+      const dx = target.current.x - pos.current.x;
+      const dy = target.current.y - pos.current.y;
+      if (Math.abs(dx) < REST && Math.abs(dy) < REST) {
+        pos.current = { ...target.current };
+        apply();
+        raf.current = 0;
+        setMoving(false);
+        return;
+      }
+      pos.current = { x: pos.current.x + dx * k, y: pos.current.y + dy * k };
+      apply();
+      raf.current = requestAnimationFrame(tick);
+    };
+    raf.current = requestAnimationFrame(tick);
+  }, [apply, reduced, setMoving, stop]);
 
   useEffect(() => {
     const el = layerRef.current;
@@ -165,8 +164,8 @@ export function useSpreadScroll(
 
     // Touch has no wheel, so it keeps a drag -- and only touch does, because a
     // pointer captured on a mouse press retargets the click with it and the
-    // pictures stop being links. The finger moves the wall 1:1 and letting go
-    // hands the last target to the spring.
+    // pictures stop being links. The finger sets the target and the same
+    // ease carries the wall after it.
     let from: { x: number; y: number; px: number; py: number } | null = null;
     const onDown = (e: PointerEvent) => {
       if (e.pointerType === "mouse") return;
@@ -224,21 +223,19 @@ export function useSpreadScroll(
    * screens sideways gathers into a centred globe instead of off the edge.
    */
   const home = useCallback(() => {
-    generation.current++;
     stop();
     // Transitions back on BEFORE the zero is written, or the ease home is lost.
     setMoving(false);
     target.current = { x: 0, y: 0 };
+    pos.current = { x: 0, y: 0 };
     wraps.current = [];
-    x.jump(0);
-    y.jump(0);
     spinRef.current?.style.setProperty("--pan-x", "0");
     spinRef.current?.style.setProperty("--pan-y", "0");
     tileRefs.current.forEach((el) => {
       el?.style.setProperty("--wx", "0");
       el?.style.setProperty("--wy", "0");
     });
-  }, [setMoving, spinRef, stop, tileRefs, x, y]);
+  }, [setMoving, spinRef, stop, tileRefs]);
 
   useEffect(() => stop, [stop]);
 

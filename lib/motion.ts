@@ -151,22 +151,6 @@ export const SPRING = {
   card: { type: "spring", duration: 0.7, bounce: 0.5 },
   /** A sticker flying to the back of the pile. */
   sticker: { type: "spring", duration: 0.55, bounce: 0.3 },
-  /**
-   * The globe gallery's wall under a wheel or a finger.
-   *
-   * A spring rather than one of the six curves, by the rule at the top of this
-   * table: it is real travel that has to overshoot, and it is retargeted on
-   * every wheel event -- a tween would restart from zero sixty times a second
-   * and never get going, where a spring carries its velocity into each new
-   * target.
-   *
-   * LONG, and that is the whole character. At 0.8s it read as stiff: the wall
-   * arrived almost as soon as the notch did, so a gallery meant to be wandered
-   * around felt like a list being stepped through. A second and a bit of glide
-   * is what turns a scroll into a drift, and the bounce is what lets it coast
-   * a little past the mark before easing back.
-   */
-  wall: { type: "spring", duration: 1.15, bounce: 0.26 },
 } as const;
 
 /**
