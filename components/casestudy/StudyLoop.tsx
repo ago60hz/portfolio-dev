@@ -1,4 +1,5 @@
 import type { Loop } from "@/content/case-studies";
+import { mediaAnchor } from "@/lib/anchors";
 import { MediaFrame, fitClass } from "./MediaFrame";
 
 /**
@@ -19,7 +20,11 @@ import { MediaFrame, fitClass } from "./MediaFrame";
  */
 export function StudyLoop({ media }: { media: Loop }) {
   return (
-    <figure>
+    // The id the globe gallery's tiles point at. Derived from the file rather
+    // than authored, so a tile and the picture it shows can never drift apart
+    // -- see lib/anchors.ts. scroll-mt matches the headings', so an arrival
+    // lands with the same breathing room a rail jump does.
+    <figure id={mediaAnchor(media.src)} className="scroll-mt-6">
       <MediaFrame width={media.width} height={media.height}>
         <picture className={fitClass(media.width, media.height)}>
           <source media="(prefers-reduced-motion: reduce)" srcSet={media.still} />

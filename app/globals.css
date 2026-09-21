@@ -681,6 +681,15 @@ body {
     --color-kitchen-surface: var(--color-kitchen-tan);
   }
 
+  /* The globe gallery does the same thing a third time (458:1830 against
+     457:1411): every purple in the frame goes to paper, and the header strip
+     goes with it. One variable again, for the same reason -- the header, the
+     sidebar and the page ground are one surface and must not repaint in three
+     separate moves. */
+  [data-surface="paper"] {
+    --color-kitchen-surface: var(--color-kitchen-paper);
+  }
+
   /* Everything that actually carries the ground, matched by the token rather
      than by where it sits.
 
@@ -1040,5 +1049,210 @@ body {
       transparent 78%
     );
     animation: steam-rise 16s var(--ease-slow-down) infinite;
+  }
+}
+
+/* -- The globe gallery -----------------------------------------------------
+   The Window's second view: every case-study still at once, clumped into a
+   slowly turning sphere and thrown out into an endless spread when it is
+   pushed. Modelled off the reference recording rather than invented -- there,
+   the collapse runs about 900ms and the throw about 680ms, both eased in and
+   out, which are `--duration-drop` and `--duration-settle` on `--ease-smooth`.
+
+   Nothing here is WebGL. Forty <img> elements on `preserve-3d` cost one
+   composited layer each and no context, no shader compilation and no second
+   rAF loop competing with the radio for frames. The ONE thing JavaScript drives
+   is `--spin`, a single custom property on a single element; the morph itself
+   is a CSS transition between two static transform strings. */
+@property --spin {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+/* The globe's lean. Registered for the same reason --spin is: both have to
+   ease back to flat as the sphere opens out, and an unregistered custom
+   property is a string as far as a transition is concerned. */
+@property --tilt {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: -8deg;
+}
+
+/* How far the wall has been scrolled, in scene units. Registered so it can
+   TRAVEL home: the tiles fly to the sphere from wherever they actually are,
+   while the container eases its scroll back underneath them. Without that a
+   wall three screens sideways gathered into a globe three screens sideways,
+   off the edge of the Window. */
+@property --pan-x {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0;
+}
+
+@property --pan-y {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0;
+}
+
+@layer components {
+  /* The room leaves on the surface's own clock, so the wall, the shelves and
+     the page ground all arrive at white together rather than in sequence.
+
+     The gallery does NOT wait for it. It arrives in half the time and clumps
+     over the rest, which is what keeps the tiles solid while they are
+     travelling: matched to the room, they were still ghosts at the midpoint of
+     their own flight, and the clump the reference is built around was the part
+     you could not see. */
+  .kitchen-room {
+    transition: opacity var(--duration-surface) var(--ease-smooth);
+  }
+
+  .globe-layer {
+    transition: opacity var(--duration-enter) var(--ease-smooth);
+  }
+
+  .kitchen-room[data-hidden="true"],
+  .globe-layer[data-open="false"] {
+    opacity: 0;
+  }
+
+  .globe-layer {
+    position: absolute;
+    /* Under the header, not over it: the strip carries the switch, and the
+       layer is sized to the visible Window rather than to the scene so the
+       globe sits in the middle of what is actually on screen. Same floor as
+       the header's own height. */
+    inset: max(var(--header-h), 32px) 0 0 0;
+    z-index: 30;
+    /* Deep enough that a tile crossing the near pole does not balloon. At the
+       sphere's 200u radius a 900px perspective gives about 1.3x between the
+       far and near faces, which is the depth the reference shows. */
+    perspective: calc(900 * var(--u));
+    overflow: hidden;
+  }
+
+  /* The turntable. One transform, so the pan and the spin have to share it --
+     which is fine, because they are never both in play: the pan only moves in
+     the spread, where the spin is parked. */
+  .globe-spin {
+    position: absolute;
+    inset: 0;
+    transform-style: preserve-3d;
+    transform: translate3d(
+        calc(var(--pan-x) * var(--u)),
+        calc(var(--pan-y) * var(--u)),
+        0
+      )
+      rotateX(var(--tilt)) rotateY(var(--spin));
+    /* The scroll and the lean ease in BOTH directions, so this lives on the
+       base rule. --spin deliberately does not: it is written every frame while
+       the globe turns, and a transition on a property under a rAF loop only
+       makes the turn lag its own clock. It joins the list in the grid rule,
+       where the turn has stopped and the angle has one target left. */
+    transition:
+      --pan-x var(--duration-drop) var(--ease-smooth),
+      --pan-y var(--duration-drop) var(--ease-smooth),
+      --tilt var(--duration-settle) var(--ease-smooth);
+  }
+
+  /* The spread is flat, so the lean that gives the globe its poles has to go
+     with it -- and the turn has to unwind rather than be cut.
+
+     Both angles are transitioned, NOT the transform: interpolating the
+     transform itself decomposes two matrices and takes the short way round, so
+     a sphere caught at 200 degrees visibly span BACKWARDS as it opened. The
+     component that is actually turning is the angle, so that is the thing to
+     animate -- and the spin loop hands it a whole multiple of 360 to land on,
+     which is the same pose it is already in. */
+  .globe-layer[data-mode="grid"] .globe-spin {
+    --tilt: 0deg;
+    transition:
+      --spin var(--duration-settle) var(--ease-smooth),
+      --tilt var(--duration-settle) var(--ease-smooth),
+      transform var(--duration-settle) var(--ease-smooth);
+  }
+
+  /* And nothing transitions while a gesture is in flight: the spring in
+     useSpreadScroll is what carries the smoothness there, and an easing on top
+     of it would only make the wall lag the hand. */
+  .globe-layer[data-moving="true"] .globe-spin,
+  .globe-layer[data-moving="true"] .globe-tile {
+    transition: none;
+  }
+
+  .globe-tile {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: var(--tw);
+    height: var(--th);
+    margin: calc(var(--th) / -2) 0 0 calc(var(--tw) / -2);
+    transform-style: preserve-3d;
+    transform: var(--t-globe);
+    background: var(--color-kitchen-paper);
+    border-radius: calc(2 * var(--u));
+    /* A hairline, and it is structural rather than decoration. Half the tiles
+       on the sphere are facing away, and a tile facing away is a white card on
+       a paper ground -- invisible, which is what made twenty-two pictures read
+       as a ring rather than as a ball. The edge is what gives the far side a
+       silhouette. Drawn with a shadow, not a border, so it costs no layout and
+       cannot change the box the transforms are built on. */
+    box-shadow: 0 0 0 1px rgb(0 0 0 / 0.08);
+    cursor: pointer;
+    /* Both strings carry the same transform functions in the same order (see
+       lib/globe.ts), so this interpolates component by component: the sphere's
+       rotation unwinds while the slot's offset eases in. */
+    transition:
+      transform var(--duration-drop) var(--ease-smooth) var(--tile-delay, 0ms),
+      filter var(--duration-state) var(--ease-smooth);
+  }
+
+  .globe-layer[data-mode="grid"] .globe-tile {
+    transform: var(--t-grid);
+    /* The throw is quicker than the clump, exactly as the reference plays it:
+       a gallery opening out should feel released, and one balling up should
+       feel gathered. */
+    transition-duration: var(--duration-settle);
+  }
+
+  /* A tile is an opaque card with a picture on the front. Hiding only the
+     IMAGE's back face is what leaves a clean white rectangle on the far side
+     of the sphere -- the parent still paints, so the globe reads as a solid
+     ball rather than as a cloud of mirrored screenshots. */
+  .globe-tile img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: inherit;
+    backface-visibility: hidden;
+  }
+
+  /* Hover is the only affordance a tile has: it says "this is a link" without
+     adding chrome that would be drawn forty times. */
+  @media (hover: hover) and (pointer: fine) {
+    .globe-tile:hover {
+      filter: brightness(1.06) drop-shadow(0 0 calc(6 * var(--u)) rgb(0 0 0 / 0.28));
+    }
+  }
+
+  .globe-tile:focus-visible {
+    outline: 2px solid var(--color-kitchen-ink);
+    outline-offset: 2px;
+  }
+
+  /* Reduced motion gets both views, and the switch between them, with no
+     travel at all -- the same rule the room's entrance follows. The globe
+     still forms, because the sphere IS the content; it simply does not turn
+     and does not fly. */
+  @media (prefers-reduced-motion: reduce) {
+    .kitchen-room,
+    .globe-layer,
+    .globe-tile,
+    .globe-layer[data-mode="grid"] .globe-spin {
+      transition: none !important;
+    }
   }
 }

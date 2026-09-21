@@ -8,6 +8,7 @@ import { StudyHeader } from "@/components/casestudy/StudyHeader";
 import { StudyMasthead } from "@/components/casestudy/StudyMasthead";
 import { StudyBody } from "@/components/casestudy/StudyBody";
 import { ProgressRail } from "@/components/casestudy/ProgressRail";
+import { StudyHashScroll } from "@/components/casestudy/StudyHashScroll";
 import { NextStudy } from "@/components/casestudy/NextStudy";
 import { Reveal } from "@/components/motion/Reveal";
 
@@ -71,6 +72,11 @@ export default async function StudyPage({ params }: Params) {
           </article>
         </div>
       </div>
+
+      {/* A tile in the globe gallery links to its own picture, and the
+          fragment has to be honoured by hand: the document is not the
+          scroller. */}
+      <StudyHashScroll />
 
       {/* Outside the scroller: the rail describes the article rather than
           travelling with it, so it stays put while the page moves under it. */}

@@ -4,23 +4,31 @@ import { motion } from "motion/react";
 import { useEntranceReady } from "@/hooks/useEntranceReady";
 import { useRevealProps } from "@/components/motion/Reveal";
 import { bootDelay } from "@/lib/motion";
-import { useLocalTime } from "@/hooks/useLocalTime";
 import { ContactMenu } from "./ContactMenu";
+import { GalleryToggle } from "./GalleryToggle";
 
 /**
  * The Window's top strip (1:193).
  *
- * 38u tall with `pl-16u pr-7u py-7u`. The strip now carries its own ground --
- * a solid #9770ff fill with a 1px ink stroke -- where it used to sit straight
- * on the tiled wall. That is what lets the greeting and the clock be INK: they
- * were lime only because ink would have disappeared into the grout, and with a
- * flat fill under them that reason is gone. The split button keeps lime on
- * black; it has its own ground.
+ * 38u tall with `pl-16u pr-7u py-7u`. The strip carries its own ground -- a
+ * solid fill with a 1px ink stroke -- where it used to sit straight on the
+ * tiled wall. That is what lets the greeting be INK: it was lime only because
+ * ink would have disappeared into the grout, and with a flat fill under it that
+ * reason is gone. The split button keeps lime on black; it has its own ground.
+ *
+ * The fill is `kitchen-surface`, not `kitchen-purple`. 458:1830 against
+ * 457:1411 turns the whole frame to paper when the gallery is on, and the strip
+ * is part of that frame -- painting it in the role rather than the hue is what
+ * lets it repaint with the sidebar and the page ground on one clock instead of
+ * needing a second rule of its own.
+ *
+ * The local clock that used to sit here is gone, replaced by the Gallery
+ * switch: the design gives the strip one thing to say and one control, and two
+ * readouts either side of a bullet read as a status bar.
  *
  * Height has a 32px floor because the type inside it does not scale with --u.
  */
 export function Header() {
-  const time = useLocalTime();
   const booted = useEntranceReady();
 
   return (
@@ -29,7 +37,11 @@ export function Header() {
     // changes what 38u is measured against.
     <motion.div
       {...useRevealProps("slide-top", booted, bootDelay("header"))}
-      className="relative z-40 flex w-full shrink-0 items-center justify-between gap-2 bg-kitchen-purple"
+      // Sticky, so the switch is always within reach. Below lg the room is
+      // taller than its Window and scrolls, and a strip that scrolled away
+      // with it took the only way out of the gallery along too. Above lg the
+      // scene fits its Window and this does nothing at all.
+      className="sticky top-0 z-40 flex w-full shrink-0 items-center justify-between gap-2 bg-kitchen-surface"
       style={{
         minHeight: "max(var(--header-h), 32px)",
         paddingInline: "calc(16 * var(--u)) calc(8 * var(--u))",
@@ -47,18 +59,12 @@ export function Header() {
         boxShadow: "inset 0 -1px 0 var(--color-kitchen-ink)",
       }}
     >
-      <p className="flex min-w-0 items-baseline gap-1 text-kitchen-ink">
-        <span className="font-gochi truncate text-lead">
-          Welcome to my Kitchen |
-        </span>
-        {/* tabular so the strip doesn't jitter when the digits change */}
-        <span className="font-doto tabular shrink-0 text-lead tracking-[-0.8px]">
-          {time ?? "--:--"}
-        </span>
-        <span className="font-doto tabular hidden shrink-0 text-lead tracking-[-0.8px] sm:inline">
-          local time
-        </span>
-      </p>
+      <div className="flex min-w-0 items-center gap-2 text-kitchen-ink">
+        <p className="font-gochi truncate text-lead">
+          Welcome to my Kitchen <span aria-hidden>&bull;</span>
+        </p>
+        <GalleryToggle />
+      </div>
 
       <ContactMenu />
     </motion.div>

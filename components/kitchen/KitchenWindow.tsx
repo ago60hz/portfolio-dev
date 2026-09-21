@@ -10,10 +10,13 @@ import { Shelf } from "./Shelf";
 import { WallGallery } from "./gallery/WallGallery";
 import { Loader } from "@/components/loader/Loader";
 import { BackgroundVideo } from "./BackgroundVideo";
+import { GlobeGallery } from "./globe/GlobeGallery";
+import { useKitchen } from "@/lib/store";
 
 function intoShelves<T>(items: T[], size: number): T[][] {
   const out: T[][] = [];
-  for (let i = 0; i < items.length; i += size) out.push(items.slice(i, i + size));
+  for (let i = 0; i < items.length; i += size)
+    out.push(items.slice(i, i + size));
   return out;
 }
 
@@ -30,6 +33,19 @@ function intoShelves<T>(items: T[], size: number): T[][] {
  */
 export function KitchenWindow() {
   /*
+   * The Window has two views and shows one at a time.
+   *
+   * The room is wrapped rather than left as the scene's own children so that
+   * ONE element carries the cross-fade. Fading the wall, the shelves and the
+   * floor band separately would have them arrive at white on three clocks, and
+   * the tile is a background-image -- which cannot be transitioned at all.
+   *
+   * The wrapper is the flex item the band used to be sized against, and its
+   * height is the scene's less the header's, so `--floor-flex` divides exactly
+   * the same remainder it did before.
+   */
+  const globeOpen = useKitchen((s) => s.globeOpen);
+  /*
    * Three cans a shelf on the design frame, two on the phone -- which turns
    * nine works into three shelves or five. The split has to happen here
    * because a shelf is a section with its own plank and its own garnishes, so
@@ -41,39 +57,58 @@ export function KitchenWindow() {
 
   return (
     <div className="kitchen-stage flex h-full w-full flex-col overflow-hidden rounded-(--radius-window) border border-b-2 border-kitchen-ink bg-kitchen-paper">
-      <div className="flex min-h-0 flex-1 overflow-auto">
+      {/* The Window's scroller. Locked while the gallery is up: the room
+          behind it is invisible and inert, so the only thing that should move
+          under a gesture is the wall, never the kitchen it replaced. */}
+      <div
+        className={`flex min-h-0 flex-1 ${globeOpen ? "overflow-hidden" : "overflow-auto"}`}
+      >
         <div
           // `isolate` contains the background film's OVERLAY blend to the
           // scene. Without a stacking context here it composites against
           // everything beneath it up the tree, which tints the Window's paper
           // ground and its border along with the wall.
-          className="kitchen-scene relative isolate flex min-h-full flex-1 flex-col bg-repeat"
-          style={{
-            backgroundImage: "url(/assets/scene/wall-tile.webp)",
-            backgroundSize: "var(--wall-tile-size) auto",
-          }}
+          className="kitchen-scene relative isolate flex min-h-full flex-1 flex-col"
         >
-          {/* The wall's film (1:192). First child and z-0, so it sits on the
-              tile it blends with and under everything else in the room. */}
-          <BackgroundVideo />
-
           <Header />
 
-          {/* Steam off the Window floor -- the brief's "something is being
+          {/* The room itself. It carries the wall, because the tile is a
+              background-image and a background-image cannot be transitioned --
+              the only way it leaves is with the element it is painted on.
+
+              No `min-h-0`: a flex item's default `min-height: auto` is what
+              lets this grow past its basis, and below lg the scene is
+              DELIBERATELY taller than its Window. Zeroing it here cut the
+              fifth shelf off with nothing to scroll, which is the same trap
+              the scene itself carries a note about. */}
+          <div
+            className="kitchen-room relative flex flex-1 flex-col bg-repeat"
+            data-hidden={globeOpen}
+            style={{
+              backgroundImage: "url(/assets/scene/wall-tile.webp)",
+              backgroundSize: "var(--wall-tile-size) auto",
+            }}
+            {...(globeOpen && { inert: true })}
+          >
+            {/* The wall's film (1:192). First child and z-0, so it sits on the
+                tile it blends with and under everything else in the room. */}
+            <BackgroundVideo />
+
+            {/* Steam off the Window floor -- the brief's "something is being
               cooked below the shelf". Spans the scene rather than the floor
               band so a plume can climb past the bottom shelf; it passes behind
               the shelves and the cans, because it is atmosphere, not
               furniture. */}
-          <Hearth />
+            <Hearth />
 
-          {/* Dims the room behind the cans while a filter is active. */}
-          <FilterOverlay />
+            {/* Dims the room behind the cans while a filter is active. */}
+            <FilterOverlay />
 
-          {shelves.map((works, i) => (
-            <Shelf key={i} works={works} index={i} columns={columns} />
-          ))}
+            {shelves.map((works, i) => (
+              <Shelf key={i} works={works} index={i} columns={columns} />
+            ))}
 
-          {/* The band under the last shelf. It grows into whatever height is
+            {/* The band under the last shelf. It grows into whatever height is
               left so the radio and the vibe sticker stay on the Window floor,
               which is where the design puts them in the 884-tall frame.
 
@@ -87,28 +122,29 @@ export function KitchenWindow() {
               at 1440x800 that remainder was a whole pixel of vertical scroll.
               A hard `min-height` here blocked exactly the give this element
               exists to provide. */}
-          <div
-            className="relative w-full"
-            /* `basis` below lg, `grow` above it. The band absorbing slack
+            <div
+              className="relative w-full"
+              /* `basis` below lg, `grow` above it. The band absorbing slack
                is what left the wall grid floating mid-wall on a tablet: with
                the column now taller than the screen there is no slack to
                absorb, and the radio and photos belong at the end of the
                scroll, on the floor. */
-            style={{ flex: "var(--floor-flex, 1 1 calc(156 * var(--u)))" }}
-          >
-            {/* The radio and the vibe sticker both live in here now -- the
+              style={{ flex: "var(--floor-flex, 1 1 calc(156 * var(--u)))" }}
+            >
+              {/* The radio and the vibe sticker both live in here now -- the
                 gallery is where the design puts them. The radio starts
                 powered off, so nothing plays before a gesture. */}
-            {/* The wall grid is a desktop delight. On a re-framed room it
+              {/* The wall grid is a desktop delight. On a re-framed room it
                 competes with two cans a shelf for a width that has none to
                 spare, and its board is sized in the design frame's units.
                 `columns` is the same signal the room re-frames on, so the two
                 can never disagree. */}
-            {columns === DESKTOP_COLUMNS && <WallGallery />}
+              {columns === DESKTOP_COLUMNS && <WallGallery />}
 
-            {/* The one control that can silence the room without stopping the
+              {/* The one control that can silence the room without stopping the
                 music. Bottom-left of the floor, clear of the centred board. */}
-            <SoundToggle />
+              <SoundToggle />
+            </div>
           </div>
         </div>
       </div>
@@ -116,6 +152,14 @@ export function KitchenWindow() {
       {/* Inside the Window on purpose: the boot scales the Window up to cover
           the viewport and back down again, and the loader rides along with it.
           Being in here is also what keeps it off the case studies. */}
+      {/* The globe of case-study UI, anchored to the WINDOW rather than to
+          the scene. Below lg the scene is 1344u tall and scrolls, so a layer
+          sized to it put the globe's centre wherever the middle of the room
+          happened to be -- well below the fold on a phone. Out here it covers
+          exactly the visible Window under the header, at any frame and any
+          scroll position, and a gesture on it can never reach the scroller. */}
+      <GlobeGallery />
+
       <Loader />
     </div>
   );

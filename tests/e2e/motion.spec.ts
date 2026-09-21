@@ -92,8 +92,12 @@ test.describe("the loader", () => {
           getComputedStyle(document.querySelector<HTMLElement>("[data-loader] [data-wall]")!)
             .backgroundSize,
         ),
+        // .kitchen-room, not .kitchen-scene: the wall moved onto the room
+        // when the globe gallery gave the Window a second view. A
+        // background-image cannot be transitioned, so the only way the tile
+        // leaves is with the element it is painted on.
         sceneTile: parseFloat(
-          getComputedStyle(document.querySelector<HTMLElement>(".kitchen-scene")!).backgroundSize,
+          getComputedStyle(document.querySelector<HTMLElement>(".kitchen-room")!).backgroundSize,
         ),
       };
     });

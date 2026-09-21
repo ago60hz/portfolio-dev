@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { useEntranceReady } from "@/hooks/useEntranceReady";
 import { useIsMobile } from "@/hooks/useIsMobile";
 import { usePrefersReducedMotion } from "@/hooks/usePrefersReducedMotion";
+import { useKitchen } from "@/lib/store";
 import { RadioSlot } from "./RadioSlot";
 
 /**
@@ -57,6 +58,8 @@ export function RadioDock() {
   const onStudy = pathname.startsWith("/work/");
   const ready = useEntranceReady();
   const reduced = usePrefersReducedMotion();
+  /** The globe gallery has taken the Window; the radio's slot went with it. */
+  const hidden = useKitchen((s) => s.globeOpen) && !onStudy;
   const isMobile = useIsMobile();
   /*
    * Below lg the wall gallery is not rendered, so there is no
@@ -281,6 +284,7 @@ export function RadioDock() {
 
   if (narrow) return null;
 
+
   return (
     <div
       ref={host}
@@ -295,13 +299,18 @@ export function RadioDock() {
             : `translate3d(${box.left}px, ${box.top}px, 0) scale(${scaleX}, ${scaleY})`,
         // The slot's top-left is what the anchor reports, so scale from it.
         transformOrigin: "0 0",
-        opacity: mounted && (onStudy ? risen : box !== null) ? 1 : 0,
+        // The globe gallery replaces the room, and the radio's slot is part of
+        // the room. It is not unmounted -- doing that destroys the YouTube
+        // iframe and the track with it -- only hidden and made unreachable,
+        // on the surface's own clock so it leaves with the wall it sits on.
+        opacity: hidden || !(mounted && (onStudy ? risen : box !== null)) ? 0 : 1,
+        pointerEvents: hidden ? "none" : undefined,
         // Smooth, and the room's own state duration: this is the glide across
         // the gallery, and it has to match the board it is travelling with.
         transition:
           reduced || snapping
             ? "none"
-            : "transform var(--duration-max) var(--ease-smooth), opacity var(--duration-enter) var(--ease-smooth)",
+            : `transform var(--duration-max) var(--ease-smooth), opacity var(--duration-${hidden ? "surface" : "enter"}) var(--ease-smooth)`,
       }}
     >
       {/*
