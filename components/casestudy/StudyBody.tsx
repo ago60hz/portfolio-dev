@@ -61,7 +61,8 @@ function One({ block, slug, lead = false }: { block: Block; slug?: string; lead?
 
     case "metrics":
       return (
-        <dl className="grid grid-cols-1 gap-x-2 gap-y-4 sm:grid-cols-2">
+        // Three across rather than two-and-an-orphan when a row holds three.
+        <dl className={`grid grid-cols-1 gap-x-2 gap-y-4 ${block.items.length === 3 ? "sm:grid-cols-3" : "sm:grid-cols-2"}`}>
           {block.items.map((m) => (
             <div key={m.label} className="flex flex-col gap-2">
               <dt className={EYEBROW}>{m.label}</dt>
