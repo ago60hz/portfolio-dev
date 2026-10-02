@@ -1,9 +1,46 @@
 "use client";
 
 import Link from "next/link";
-import type { CSSProperties, RefObject } from "react";
+import type { CSSProperties, ReactNode, RefObject } from "react";
 import type { GalleryTile } from "@/content/gallery";
+import { BEND_STEP, STRIPS } from "@/lib/globe";
 import { useKitchen } from "@/lib/store";
+
+/**
+ * One side of a tile's hinge chain, built from the centre outward.
+ *
+ * Nested, not siblings, and that is the whole mechanism: each strip is hinged
+ * to the one inside it, so turning every hinge by the same small angle bends
+ * the picture into an arc with no per-strip trigonometry anywhere. A strip's
+ * transform is relative to its parent's, the parent's to ITS parent's, and the
+ * curve accumulates on its own -- flat when the angle is zero, wrapped round
+ * the sphere when it is a whole step.
+ *
+ * `k` is the strip's column in the picture, which is all its face needs to
+ * show the right slice. `r0`/`r1` are how far its inner and outer edges sit
+ * from the centre, in strips, for the shading.
+ */
+function chain(side: "l" | "r"): ReactNode {
+  const half = STRIPS / 2;
+  const ks =
+    side === "r"
+      ? Array.from({ length: half }, (_, i) => half + i)
+      : Array.from({ length: half }, (_, i) => half - 1 - i);
+  return ks.reduceRight<ReactNode>(
+    (inner, k, depth) => (
+      <span
+        className="globe-arc"
+        data-side={side}
+        data-root={depth === 0 || undefined}
+        data-end={depth === ks.length - 1 || undefined}
+        style={{ "--k": k, "--r0": depth, "--r1": depth + 1 } as CSSProperties}
+      >
+        {inner}
+      </span>
+    ),
+    null,
+  );
+}
 
 /**
  * One picture on the globe.
@@ -15,12 +52,11 @@ import { useKitchen } from "@/lib/store";
  * liked one screen lands on the paragraph that explains it rather than at the
  * top of a long article.
  *
- * A plain <img>, deliberately. These are already the right size: the pool is
- * generated at 300px by scripts/gallery-tiles.mjs precisely so that forty of
- * them cost 224KB, and routing each one through the image optimiser would add
- * forty requests to serve bytes that are already minimal. `loading="lazy"` does
- * nothing useful here either -- every tile is inside the layer's box from the
- * first frame -- so the weight has to be small rather than deferred.
+ * The picture is painted by the strips as a background, not by an <img>. Each
+ * strip shows one slice of the same URL, so it is still one request and one
+ * decode per tile -- the pool is generated at 300px by scripts/gallery-tiles.mjs
+ * precisely so that this costs 132KB in all. The link carries the alt text
+ * instead, which is where a screen reader looks for a link's name anyway.
  */
 export function GlobeTile({
   tile,
@@ -39,6 +75,7 @@ export function GlobeTile({
       ref={elRef}
       href={tile.href}
       className="globe-tile"
+      aria-label={tile.alt}
       /*
        * No viewport prefetch. Thirty-three links are all "in view" from the
        * moment the layer mounts -- it is transparent, not unlaid-out -- so the
@@ -49,7 +86,14 @@ export function GlobeTile({
        * network, and `case-study.spec.ts` caught it.
        */
       prefetch={false}
-      style={style}
+      style={
+        {
+          ...style,
+          "--src": `url(${JSON.stringify(tile.src)})`,
+          "--strips": STRIPS,
+          "--bend-step": `${BEND_STEP.toFixed(3)}deg`,
+        } as CSSProperties
+      }
       draggable={false}
       onClick={(e) => {
         if (dragged.current) {
@@ -62,15 +106,8 @@ export function GlobeTile({
         useKitchen.getState().setLeavingKitchen(true);
       }}
     >
-      {/* eslint-disable-next-line @next/next/no-img-element -- see above. */}
-      <img
-        src={tile.src}
-        alt={tile.alt}
-        width={tile.width}
-        height={tile.height}
-        decoding="async"
-        draggable={false}
-      />
+      {chain("l")}
+      {chain("r")}
     </Link>
   );
 }

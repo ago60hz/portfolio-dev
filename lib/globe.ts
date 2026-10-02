@@ -60,6 +60,30 @@ export const GLOBE_SCALE = 0.85;
 const GOLDEN = Math.PI * (3 - Math.sqrt(5));
 const DEG = 180 / Math.PI;
 
+/**
+ * How a picture bends onto the sphere.
+ *
+ * A flat card tangent to a ball touches it at one point and stands proud
+ * everywhere else, which is what made the globe read as cards pinned to a
+ * ball rather than as a ball made of pictures. So each tile is cut into
+ * vertical strips, hinged edge to edge, and every hinge turns by the same
+ * small angle -- a polygon that approximates the arc a 150u-wide picture
+ * subtends on the sphere. Horizontal only: the globe turns about Y, so that is
+ * the curvature the eye reads, and bending both ways would mean a grid of
+ * patches per tile instead of a row.
+ *
+ * Four is the floor for it to read as a curve. At three the creases showed on
+ * the silhouette of every tile crossing the limb; past four the extra planes
+ * cost layers and buy nothing anyone can see at this size. The shading that
+ * runs continuously across the strips is what hides the facets that remain.
+ *
+ * The angle is measured in the tile's OWN space, where the sphere's radius is
+ * RADIUS / GLOBE_SCALE -- the tile is scaled after it is pushed out, so its
+ * strips see a bigger ball than the layer does.
+ */
+export const STRIPS = 4;
+export const BEND_STEP = ((TILE_W / (RADIUS / GLOBE_SCALE)) * DEG) / STRIPS;
+
 export type Placement = { yaw: number; pitch: number };
 
 /**

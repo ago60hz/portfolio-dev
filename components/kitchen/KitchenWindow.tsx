@@ -10,6 +10,7 @@ import { Shelf } from "./Shelf";
 import { WallGallery } from "./gallery/WallGallery";
 import { Loader } from "@/components/loader/Loader";
 import { BackgroundVideo } from "./BackgroundVideo";
+import { GalleryPull } from "./globe/GalleryPull";
 import { GlobeGallery } from "./globe/GlobeGallery";
 import { useKitchen } from "@/lib/store";
 
@@ -158,6 +159,13 @@ export function KitchenWindow() {
           happened to be -- well below the fold on a phone. Out here it covers
           exactly the visible Window under the header, at any frame and any
           scroll position, and a gesture on it can never reach the scroller. */}
+      {/* The tag that opens it, and the paper sheet it unrolls into. Out here
+          with the globe and for the same reason: the sheet has to cover the
+          visible Window at any scroll, and the tag has to sit above the
+          gallery it leads back out of, which nothing inside the scroller's
+          stacking context can do. */}
+      <GalleryPull />
+
       <GlobeGallery />
 
       <Loader />

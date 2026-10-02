@@ -223,7 +223,7 @@ export function GlobeGallery() {
    * Twenty-two thumbnails is 132KB -- small, but it is 132KB nobody asked for,
    * and in flight during the entrance it is 132KB competing with the cans.
    * Waiting out the beat table and then asking for idle time puts them after
-   * the kitchen is usable and still long before anyone finds the switch. The
+   * the kitchen is usable and still long before anyone pulls the tag. The
    * fallback covers Safari, which has no requestIdleCallback.
    */
   useEffect(() => {

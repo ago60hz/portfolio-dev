@@ -1,8 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  BEND_STEP,
   COLUMNS,
   GAP_X,
   GAP_Y,
+  GLOBE_SCALE,
+  RADIUS,
+  STRIPS,
   TILE_W,
   layoutSpread,
   spherePlacements,
@@ -105,6 +109,39 @@ describe("tileTransforms", () => {
     expect(grid).toContain("rotateY(0deg)");
     expect(grid).toContain("translateZ(0px)");
     expect(globe).toContain("translate3d(0px, 0px, 0px)");
+  });
+});
+
+describe("the bend", () => {
+  it("wraps a tile's whole width around the sphere, no further", () => {
+    // In the tile's own space, which is scaled down after it is pushed out.
+    const radius = RADIUS / GLOBE_SCALE;
+    const arc = (TILE_W / radius) * (180 / Math.PI);
+    expect(BEND_STEP * STRIPS).toBeCloseTo(arc, 6);
+  });
+
+  it("lands every hinge on the sphere's surface", () => {
+    // Walk the strip chain out from the tile's centre the way the CSS does:
+    // the first hinge turns half a step, every hinge after it a whole one.
+    const radius = RADIUS / GLOBE_SCALE;
+    const strip = TILE_W / STRIPS;
+    const rad = (d: number) => (d * Math.PI) / 180;
+    let x = 0;
+    let z = 0;
+    for (let j = 0; j < STRIPS / 2; j++) {
+      const turn = rad(BEND_STEP / 2 + j * BEND_STEP);
+      x += strip * Math.cos(turn);
+      z -= strip * Math.sin(turn);
+      // The sphere's centre sits `radius` behind the tangent point. A chord
+      // falls slightly inside the arc it spans, so this is a tolerance rather
+      // than an equality -- about half a unit at the tile's edge.
+      expect(Math.hypot(x, z + radius)).toBeGreaterThan(radius - 1);
+      expect(Math.hypot(x, z + radius)).toBeLessThan(radius + 1);
+    }
+  });
+
+  it("cuts into an even number of strips, so the crease falls on the centre", () => {
+    expect(STRIPS % 2).toBe(0);
   });
 });
 

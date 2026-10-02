@@ -47,7 +47,7 @@ type KitchenState = {
    * Deliberately a separate flag from `galleryRevealed`, which belongs to the
    * photo board on the wall. They are two different objects that happen to
    * share a word -- one is furniture in the room, this one REPLACES the room,
-   * and the header toggle that drives it also repaints the whole surface.
+   * and the gallery tag that drives it also repaints the whole surface.
    */
   globeOpen: boolean;
   /**
