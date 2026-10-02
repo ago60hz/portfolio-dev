@@ -137,6 +137,13 @@ async function crispness(file) {
   return Math.round(variance / data.length)
 }
 
+/** Mean brightness, 0-1. A dark print seen edge-on at a pole is a smudge on
+ *  the ball's outline, so the layout keeps dark prints off the caps. */
+async function luminance(file) {
+  const { channels } = await sharp(file).greyscale().stats()
+  return Math.round((channels[0].mean / 255) * 100) / 100
+}
+
 const tiles = {}
 
 for (const key of await curatedKeys()) {
@@ -165,6 +172,7 @@ for (const key of await curatedKeys()) {
     height,
     sat: await saturation(out),
     crisp: await crispness(out),
+    lum: await luminance(out),
   }
 }
 

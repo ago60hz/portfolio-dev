@@ -124,7 +124,7 @@ export function GlobeGallery() {
     const poses = collagePoses(
       aspects,
       undefined,
-      GALLERY_TILES.map((t) => ({ group: t.slug, sat: t.sat, crisp: t.crisp })),
+      GALLERY_TILES.map((t) => ({ group: t.slug, sat: t.sat, crisp: t.crisp, lum: t.lum })),
     );
     const reach = Math.max(...slots.map((s) => Math.hypot(s.x, s.y)), 1);
     return GALLERY_TILES.map((tile, i) => ({

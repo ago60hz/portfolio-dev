@@ -85,7 +85,15 @@ export type Trait = {
   sat: number;
   /** Laplacian variance: a soft print never takes a large tier. */
   crisp?: number;
+  /** Mean brightness, 0-1: a dark print is kept off the poles. */
+  lum?: number;
 };
+
+/** How much a quiet print may grow to close a gap, against 1.3 for the rest. */
+export const QUIET_GROWTH = 1.1;
+
+/** Below this brightness a print is dark. */
+export const DARK = 0.3;
 
 /** Pale or soft: either way, a print the collage should not lean on. */
 const quiet = (t: Trait) => t.sat < PALE || (t.crisp ?? Infinity) < SOFT;
@@ -117,9 +125,9 @@ export const LIFT = 4;
  * apart -- one showed the page through the equator at the same spot in every
  * capture. `closeHoles` repairs most of that, and the deal is still chosen
  * rather than taken: of the first two hundred, this one closes up best
- * (0.3% bare) with the shallowest stack. `uncovered`'s test holds it there.
+ * (0.17% bare) with the shallowest stack. `uncovered`'s test holds it there.
  */
-export const DEAL = 131;
+export const DEAL = 77;
 
 /** The golden angle, which is what makes a Fibonacci sphere even. */
 const GOLDEN = Math.PI * (3 - Math.sqrt(5));
@@ -224,7 +232,9 @@ export function collagePoses(
     scale: base * size[i],
   }));
 
-  closeHoles(placed, heights);
+  // Quiet prints barely grow: allowed the full growth, a soft gradient ended
+  // up hero-sized and out of focus. Their neighbours do most of the filling.
+  closeHoles(placed, heights, slots.map((img) => !quiet(traits[img])));
 
   const dir = placed.map(({ yaw, pitch }) => toUnit(yaw, pitch));
   // A print's reach on the ball: its half-diagonal as an angle.
@@ -320,13 +330,17 @@ function assignSlots(unit: number[][], spiral: Placement[], traits: Trait[]) {
   let r = 0;
   for (let s = 0; s < n; s++) if (slots[s] === undefined) slots[s] = rest[r++];
 
+  const dot = (a: number, b: number) =>
+    unit[a][0] * unit[b][0] + unit[a][1] * unit[b][1] + unit[a][2] * unit[b][2];
   const near = Math.cos(55 * (Math.PI / 180));
-  const close = unit.map((u) =>
-    unit.map((v) => Math.max(0, u[0] * v[0] + u[1] * v[1] + u[2] * v[2] - near)),
-  );
-  const alike = (x: number, y: number) =>
-    (traits[x].group && traits[x].group === traits[y].group ? 1 : 0) +
-    (quiet(traits[x]) && quiet(traits[y]) ? 3 : 0);
+  // Quiet pairs reach further: two quiet prints within 70 degrees can share a
+  // view of the ball, and three of them together read as a pale patch.
+  const nearQuiet = Math.cos(70 * (Math.PI / 180));
+  const close = unit.map((_, a) => unit.map((_, b) => Math.max(0, dot(a, b) - near)));
+  const closeQuiet = unit.map((_, a) => unit.map((_, b) => Math.max(0, dot(a, b) - nearQuiet)));
+  const pairCost = (x: number, y: number, a: number, b: number) =>
+    (traits[x].group && traits[x].group === traits[y].group ? close[a][b] : 0) +
+    (quiet(traits[x]) && quiet(traits[y]) ? 6 * closeQuiet[a][b] : 0);
   // What swapping the pictures at a and b changes, against everyone else --
   // a and b's own pairing is the same either way round.
   const delta = (a: number, b: number) => {
@@ -334,17 +348,31 @@ function assignSlots(unit: number[][], spiral: Placement[], traits: Trait[]) {
     for (let k = 0; k < n; k++) {
       if (k === a || k === b) continue;
       const [pa, pb, pk] = [slots[a], slots[b], slots[k]];
-      d += (alike(pb, pk) - alike(pa, pk)) * close[a][k];
-      d += (alike(pa, pk) - alike(pb, pk)) * close[b][k];
+      d += pairCost(pb, pk, a, k) - pairCost(pa, pk, a, k);
+      d += pairCost(pa, pk, b, k) - pairCost(pb, pk, b, k);
     }
     return d;
+  };
+  // Where a picture would rather not sit. A quiet print belongs up toward
+  // the caps, out of the band the eye rests on; a dark print belongs away
+  // from them, where seen edge-on at the outline it reads as a smudge.
+  const misplaced = (img: number, s: number) => {
+    const lat = Math.abs(spiral[s].pitch);
+    return (
+      (quiet(traits[img]) && lat < 40 ? (40 - lat) / 40 : 0) +
+      ((traits[img].lum ?? 1) < DARK && lat > 55 ? 2 : 0)
+    );
   };
   const free = [...Array(n).keys()].filter((s) => !heroSlots.includes(s));
   for (let pass = 0; pass < 20; pass++) {
     let improved = false;
     for (const a of free) {
       for (const b of free) {
-        if (b <= a || delta(a, b) >= -1e-9) continue;
+        if (b <= a) continue;
+        const moved =
+          misplaced(slots[b], a) + misplaced(slots[a], b) -
+          misplaced(slots[a], a) - misplaced(slots[b], b);
+        if (delta(a, b) + moved >= -1e-9) continue;
         [slots[a], slots[b]] = [slots[b], slots[a]];
         improved = true;
       }
@@ -370,6 +398,7 @@ const HOLE_TOLERANCE = 0.003;
 function closeHoles(
   placed: { yaw: number; pitch: number; roll: number; scale: number }[],
   heights: number[],
+  mayGrow: boolean[] = placed.map(() => true),
 ) {
   const rad = Math.PI / 180;
   const aspects = heights.map((h) => TILE_W / h);
@@ -379,9 +408,9 @@ function closeHoles(
     Math.cos(pitch * rad) * Math.cos(yaw * rad),
   ];
   // Growth is capped, so filling a hole never turns a body print into a
-  // poster: past this the bend gets steep, the picture soft, and the stack
-  // deep. The rest of the work is done by moving.
-  const cap = placed.map((p) => p.scale * 1.25);
+  // poster: past this the picture goes soft and the stack deep. The rest of
+  // the work is done by moving.
+  const cap = placed.map((p, i) => p.scale * (mayGrow[i] ? 1.3 : QUIET_GROWTH));
   for (let round = 0; round < 120; round++) {
     const holes = bareSpots(placed as Pose[], aspects, 1500);
     if (holes.length / 1500 < HOLE_TOLERANCE) return;
@@ -390,8 +419,10 @@ function closeHoles(
     for (const pt of holes) {
       let best = 0;
       let bestDot = -2;
+      // The nearest print takes the gap, with a thumb on the scale for the
+      // ones free to grow: a quiet print beside a hole can barely close it.
       centres.forEach((c, i) => {
-        const d = c[0] * pt[0] + c[1] * pt[1] + c[2] * pt[2];
+        const d = (c[0] * pt[0] + c[1] * pt[1] + c[2] * pt[2]) * (mayGrow[i] ? 1 : 0.97);
         if (d > bestDot) [best, bestDot] = [i, d];
       });
       pull[best].n++;

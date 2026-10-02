@@ -78,6 +78,8 @@ export type GalleryTile = {
   sat: number;
   /** How sharp it reads: Laplacian variance at 320px (same script). */
   crisp: number;
+  /** Mean brightness, 0-1 (same script). */
+  lum: number;
 };
 
 const describe = (key: string) => {
@@ -95,6 +97,7 @@ const describe = (key: string) => {
     href: `/work/${key.split("/")[0]}#${mediaAnchor(media.src)}`,
     sat: art.sat,
     crisp: art.crisp,
+    lum: art.lum,
   };
 };
 

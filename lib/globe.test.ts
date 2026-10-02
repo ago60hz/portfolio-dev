@@ -6,6 +6,7 @@ import {
   GAP_X,
   GRID,
   HEROES,
+  DARK,
   LIFT,
   PALE,
   SOFT,
@@ -126,7 +127,7 @@ describe("tileTransforms", () => {
 describe("collagePoses", () => {
   // The real pool, so the chosen deal is tested on what it was chosen for.
   const pool = GALLERY_TILES.map((t) => t.width / t.height);
-  const traits = GALLERY_TILES.map((t) => ({ group: t.slug, sat: t.sat, crisp: t.crisp }));
+  const traits = GALLERY_TILES.map((t) => ({ group: t.slug, sat: t.sat, crisp: t.crisp, lum: t.lum }));
   const poses = collagePoses(pool, undefined, traits);
 
   it("covers the ball with overlap to spare, so no far side shows through", () => {
@@ -203,6 +204,12 @@ describe("collagePoses", () => {
     expect(mean(pale)).toBeLessThan(mean(vivid));
   });
 
+  it("keeps dark prints off the caps, where edge-on they read as smudges", () => {
+    poses.forEach((p, i) => {
+      if (GALLERY_TILES[i].lum < DARK) expect(Math.abs(p.pitch)).toBeLessThanOrEqual(60);
+    });
+  });
+
   it("is the same collage on every render", () => {
     expect(collagePoses(pool, undefined, traits)).toEqual(poses);
   });
@@ -217,7 +224,7 @@ describe("decal", () => {
   const poses = collagePoses(
     pool,
     undefined,
-    GALLERY_TILES.map((t) => ({ group: t.slug, sat: t.sat, crisp: t.crisp })),
+    GALLERY_TILES.map((t) => ({ group: t.slug, sat: t.sat, crisp: t.crisp, lum: t.lum })),
   );
   const px = 1.07;
 
