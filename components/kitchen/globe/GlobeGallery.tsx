@@ -106,32 +106,45 @@ export function GlobeGallery() {
     return () => ro.disconnect();
   }, []);
 
-  const { slots, periodX, periodY, tiles } = useMemo(() => {
-    const aspects = GALLERY_TILES.map((t) => t.width / t.height);
-    const spread = layoutSpread(aspects);
-    const poses = collagePoses(aspects);
-    const reach = Math.max(...spread.slots.map((s) => Math.hypot(s.x, s.y)), 1);
-    return {
-      ...spread,
-      tiles: GALLERY_TILES.map((tile, i) => ({
-        tile,
-        slot: spread.slots[i],
-        pose: poses[i],
-        aspect: aspects[i],
-        ...tileTransforms(poses[i], spread.slots[i]),
-        // A radial beat: the middle of the spread leaves first and the corners
-        // follow it in. Capped at two beats, because the reference dissolves
-        // the whole grid inside a fifth of the travel -- any longer and the
-        // edges read as a second, separate animation.
-        delay: (Math.hypot(spread.slots[i].x, spread.slots[i].y) / reach) * 110,
-      })),
-    };
-  }, []);
+  const aspects = useMemo(() => GALLERY_TILES.map((t) => t.width / t.height), []);
+  const { slots, periodX, periodY } = useMemo(() => layoutSpread(aspects), [aspects]);
+
+  /*
+   * The collage itself, only once the pictures are wanted.
+   *
+   * Solving it -- the assignment, the settle that closes the holes, the
+   * stack -- is ~10-40ms of arithmetic. The wall's slots are needed from the
+   * first render (the scroll is sized on them); the ball is not, so it waits
+   * for the same idle moment the pictures are fetched in, rather than landing
+   * in the middle of the entrance.
+   */
+  const wanted = armed || open;
+  const tiles = useMemo(() => {
+    if (!wanted) return null;
+    const poses = collagePoses(
+      aspects,
+      undefined,
+      GALLERY_TILES.map((t) => ({ group: t.slug, sat: t.sat })),
+    );
+    const reach = Math.max(...slots.map((s) => Math.hypot(s.x, s.y)), 1);
+    return GALLERY_TILES.map((tile, i) => ({
+      tile,
+      slot: slots[i],
+      pose: poses[i],
+      aspect: aspects[i],
+      ...tileTransforms(poses[i], slots[i]),
+      // A radial beat: the middle of the spread leaves first and the corners
+      // follow it in. Capped at two beats, because the reference dissolves
+      // the whole grid inside a fifth of the travel -- any longer and the
+      // edges read as a second, separate animation.
+      delay: (Math.hypot(slots[i].x, slots[i].y) / reach) * 110,
+    }));
+  }, [aspects, slots, wanted]);
 
   // The decals, in pixels: recomputed only when the scene unit moves, which
   // is a resize and nothing else.
   const decals = useMemo(() => {
-    if (!px) return null;
+    if (!px || !tiles) return null;
     let heroes = 0;
     return tiles.map(({ pose, aspect }) => ({
       w: TILE_W * pose.layout * px,
@@ -351,7 +364,7 @@ export function GlobeGallery() {
       />
 
       <div ref={spinRef} className="globe-spin">
-        {(armed || open) &&
+        {tiles &&
           decals &&
           tiles.map(({ tile, globe, grid, delay }, i) => (
             <GlobeTile

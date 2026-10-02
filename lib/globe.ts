@@ -65,12 +65,22 @@ export const COVERAGE = 1.3;
  * twenty-two prints of the same weight -- a patchwork, with nothing for the
  * eye to land on first. The ratios are relative; COVERAGE sets the absolute.
  */
-export const SIZE_TIERS = { hero: 1.25, body: 1, small: 0.76 } as const;
+export const SIZE_TIERS = { hero: 1.25, body: 1, small: 0.86 } as const;
 
-/** Which tier the print at position i takes: every seventh a hero, so the
- *  three of them land far apart on the spiral, and a small one between. */
-const tierOf = (i: number) =>
-  i % 7 === 0 ? SIZE_TIERS.hero : i % 3 === 2 ? SIZE_TIERS.small : SIZE_TIERS.body;
+/** Below this much colour a print is pale: mostly white UI on a white
+ *  canvas. Pale prints take the small tier and are kept apart. */
+export const PALE = 0.12;
+
+/** How many heroes the collage is built around. */
+export const HEROES = 3;
+
+/** What the layout knows about a picture beyond its shape. */
+export type Trait = {
+  /** Prints from the same study look alike, so they are kept apart. */
+  group: string;
+  /** Mean saturation, 0-1: who gets the hero spots, and who is pale. */
+  sat: number;
+};
 
 /** The most a print leans off square, either way. Enough to read as laid by
  *  hand, little enough that the ball still reads as a ball. */
@@ -96,9 +106,9 @@ export const LIFT = 4;
  * apart -- one showed the page through the equator at the same spot in every
  * capture. `closeHoles` repairs most of that, and the deal is still chosen
  * rather than taken: of the first two hundred, this one closes up best
- * (0.13% bare) with the shallowest stack. `uncovered`'s test holds it there.
+ * (0.2% bare) with the shallowest stack. `uncovered`'s test holds it there.
  */
-export const DEAL = 173;
+export const DEAL = 2;
 
 /** The golden angle, which is what makes a Fibonacci sphere even. */
 const GOLDEN = Math.PI * (3 - Math.sqrt(5));
@@ -167,16 +177,36 @@ const noise = (i: number, salt: number) => {
  * overlaps alternate who is on top, instead of the spiral laying every print
  * over the one before it like roof slates.
  */
-export function collagePoses(aspects: number[], deal = DEAL): Pose[] {
+export function collagePoses(
+  aspects: number[],
+  deal = DEAL,
+  traits: Trait[] = aspects.map(() => ({ group: "", sat: 0.5 })),
+): Pose[] {
   const n = aspects.length;
-  const heights = aspects.map((a) => TILE_W / Math.max(a, 0.2));
-  const size = aspects.map((_, i) => tierOf(i));
+  // The spiral's ends stay where the spiral puts them, half a band off the
+  // poles. Pinned square on the poles they closed each cap as one surface,
+  // but opened a ring of gaps round it that cost more than the shards did.
+  const spiral = spherePlacements(n);
+  const unit = spiral.map(({ yaw, pitch }) => toUnit(yaw, pitch));
+
+  const slots = assignSlots(unit, spiral, traits);
+  // slots[s] is the picture at spiral position s; everything below works in
+  // spiral order and is handed back in picture order at the end.
+  const heights = slots.map((img) => TILE_W / Math.max(aspects[img], 0.2));
+  const heroSlots = new Set(heroSpots(spiral));
+  const size = slots.map((img, s) =>
+    heroSlots.has(s)
+      ? SIZE_TIERS.hero
+      : traits[img].sat < PALE
+        ? SIZE_TIERS.small
+        : SIZE_TIERS.body,
+  );
   const drawn = heights.reduce((sum, h, i) => sum + TILE_W * h * size[i] ** 2, 0);
   const base = Math.sqrt((COVERAGE * 4 * Math.PI * RADIUS ** 2) / Math.max(drawn, 1));
 
   const salt = (k: number) => k + deal * 10;
-  const placed = spherePlacements(n).map((place, i) => ({
-    hero: size[i] === SIZE_TIERS.hero,
+  const placed = spiral.map((place, i) => ({
+    hero: heroSlots.has(i),
     yaw: place.yaw + (noise(i, salt(2)) - 0.5) * 12,
     pitch: Math.max(-84, Math.min(84, place.pitch + (noise(i, salt(3)) - 0.5) * 8)),
     roll: (noise(i, salt(4)) - 0.5) * 2 * ROLL,
@@ -185,12 +215,7 @@ export function collagePoses(aspects: number[], deal = DEAL): Pose[] {
 
   closeHoles(placed, heights);
 
-  const rad = Math.PI / 180;
-  const dir = placed.map(({ yaw, pitch }) => [
-    Math.cos(pitch * rad) * Math.sin(yaw * rad),
-    Math.sin(pitch * rad),
-    Math.cos(pitch * rad) * Math.cos(yaw * rad),
-  ]);
+  const dir = placed.map(({ yaw, pitch }) => toUnit(yaw, pitch));
   // A print's reach on the ball: its half-diagonal as an angle.
   const reach = placed.map(
     (p, i) => (Math.hypot(TILE_W, heights[i]) * p.scale) / 2 / RADIUS,
@@ -200,7 +225,7 @@ export function collagePoses(aspects: number[], deal = DEAL): Pose[] {
     reach[a] + reach[b];
 
   const layer = new Array<number>(n).fill(-1);
-  const stride = [7, 5, 3, 1].find((s) => n % s !== 0) ?? 1;
+  const stride = [7, 5, 3, 1].find((st) => n % st !== 0) ?? 1;
   for (let step = 0; step < n; step++) {
     const i = (step * stride) % n;
     const taken = new Set<number>();
@@ -209,14 +234,112 @@ export function collagePoses(aspects: number[], deal = DEAL): Pose[] {
     while (taken.has(l)) l++;
     layer[i] = l;
   }
+  // A hero lies over everything it touches: its tape runs half off its edge,
+  // onto the neighbours, and tape tucked UNDER a neighbour is not tape.
+  for (const h of heroSlots) {
+    let top = -1;
+    for (let j = 0; j < n; j++) if (j !== h && overlaps(h, j)) top = Math.max(top, layer[j]);
+    layer[h] = Math.max(layer[h], top + 1);
+  }
 
-  return placed.map((p, i) => {
-    return {
-      ...p,
-      layout: Math.max(p.scale, 1),
-      lift: layer[i] * LIFT,
-    };
+  const out = new Array<Pose>(n);
+  placed.forEach((p, s) => {
+    out[slots[s]] = { ...p, layout: Math.max(p.scale, 1), lift: layer[s] * LIFT };
   });
+  return out;
+}
+
+const toUnit = (yaw: number, pitch: number) => {
+  const rad = Math.PI / 180;
+  return [
+    Math.cos(pitch * rad) * Math.sin(yaw * rad),
+    Math.sin(pitch * rad),
+    Math.cos(pitch * rad) * Math.cos(yaw * rad),
+  ];
+};
+
+/**
+ * The hero spots: HEROES positions in the middle latitudes, as far apart in
+ * longitude as the spiral allows.
+ *
+ * Every-seventh-print put two of the three on the poles, where nobody sees
+ * them and their tape faced the ceiling. Within 35 degrees of the equator a
+ * hero is on the face of the ball every third of a turn.
+ */
+function heroSpots(spiral: Placement[]) {
+  const band = spiral.flatMap((p, i) => (Math.abs(p.pitch) <= 35 ? [i] : []));
+  const apart = (a: number, b: number) => {
+    const d = Math.abs(((spiral[a].yaw - spiral[b].yaw) % 360) + 360) % 360;
+    return Math.min(d, 360 - d);
+  };
+  let best: number[] = band.slice(0, HEROES);
+  let bestGap = -1;
+  const pick = (from: number, chosen: number[]) => {
+    if (chosen.length === HEROES) {
+      let gap = Infinity;
+      for (let a = 0; a < chosen.length; a++)
+        for (let b = a + 1; b < chosen.length; b++) gap = Math.min(gap, apart(chosen[a], chosen[b]));
+      if (gap > bestGap) [best, bestGap] = [chosen, gap];
+      return;
+    }
+    for (let k = from; k < band.length; k++) pick(k + 1, [...chosen, band[k]]);
+  };
+  pick(0, []);
+  return best;
+}
+
+/**
+ * Which picture goes on which spiral position.
+ *
+ * The heroes are the pictures with the most colour. Everything else is
+ * placed to keep alike prints apart: a pair from the same study, or two pale
+ * prints, costs more the closer they sit. Pairwise swaps until no swap helps
+ * -- a local optimum, which at twenty-two prints is a good one, and
+ * deterministic.
+ */
+function assignSlots(unit: number[][], spiral: Placement[], traits: Trait[]) {
+  const n = unit.length;
+  const heroSlots = heroSpots(spiral);
+  const byColour = traits.map((_, i) => i).sort((a, b) => traits[b].sat - traits[a].sat);
+  const heroes = byColour.slice(0, heroSlots.length);
+  const rest = traits.map((_, i) => i).filter((i) => !heroes.includes(i));
+  const slots = new Array<number>(n);
+  heroSlots.forEach((s, k) => (slots[s] = heroes[k]));
+  let r = 0;
+  for (let s = 0; s < n; s++) if (slots[s] === undefined) slots[s] = rest[r++];
+
+  const near = Math.cos(55 * (Math.PI / 180));
+  const close = unit.map((u) =>
+    unit.map((v) => Math.max(0, u[0] * v[0] + u[1] * v[1] + u[2] * v[2] - near)),
+  );
+  const alike = (x: number, y: number) =>
+    (traits[x].group && traits[x].group === traits[y].group ? 1 : 0) +
+    (traits[x].sat < PALE && traits[y].sat < PALE ? 1.5 : 0);
+  // What swapping the pictures at a and b changes, against everyone else --
+  // a and b's own pairing is the same either way round.
+  const delta = (a: number, b: number) => {
+    let d = 0;
+    for (let k = 0; k < n; k++) {
+      if (k === a || k === b) continue;
+      const [pa, pb, pk] = [slots[a], slots[b], slots[k]];
+      d += (alike(pb, pk) - alike(pa, pk)) * close[a][k];
+      d += (alike(pa, pk) - alike(pb, pk)) * close[b][k];
+    }
+    return d;
+  };
+  const free = [...Array(n).keys()].filter((s) => !heroSlots.includes(s));
+  for (let pass = 0; pass < 20; pass++) {
+    let improved = false;
+    for (const a of free) {
+      for (const b of free) {
+        if (b <= a || delta(a, b) >= -1e-9) continue;
+        [slots[a], slots[b]] = [slots[b], slots[a]];
+        improved = true;
+      }
+    }
+    if (!improved) break;
+  }
+  return slots;
 }
 
 /** Settle for this little of the ball showing through: one sample in 300. */
@@ -246,8 +369,8 @@ function closeHoles(
   // Growth is capped, so filling a hole never turns a body print into a
   // poster: past this the bend gets steep, the picture soft, and the stack
   // deep. The rest of the work is done by moving.
-  const cap = placed.map((p) => p.scale * 1.2);
-  for (let round = 0; round < 80; round++) {
+  const cap = placed.map((p) => p.scale * 1.25);
+  for (let round = 0; round < 120; round++) {
     const holes = bareSpots(placed as Pose[], aspects, 1500);
     if (holes.length / 1500 < HOLE_TOLERANCE) return;
     const centres = placed.map((p) => toVec(p.yaw, p.pitch));
@@ -289,6 +412,18 @@ export function uncovered(poses: Pose[], aspects: number[], samples = 3000) {
   return bareSpots(poses, aspects, samples).length / samples;
 }
 
+/** The sphere's sample points, built once per count: the settle loop asks for
+ *  the same 1500 on every round. */
+const sampleCache = new Map<number, number[][]>();
+function samplesOf(count: number) {
+  let pts = sampleCache.get(count);
+  if (!pts) {
+    pts = spherePlacements(count).map(({ yaw, pitch }) => toUnit(yaw, pitch));
+    sampleCache.set(count, pts);
+  }
+  return pts;
+}
+
 /** The sample points no print covers, as unit vectors. */
 function bareSpots(
   poses: Pick<Pose, "yaw" | "pitch" | "roll" | "scale">[],
@@ -313,19 +448,17 @@ function bareSpots(
     };
   });
   const dot = (a: number[], b: number[]) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  // |atan(x / depth)| <= w is |x| <= tan(w) * depth for depth > 0, so the
+  // tangents are taken once per print instead of twice per sample.
+  const bounds = frames.map((f) => ({ ...f, tw: Math.tan(f.w), th: Math.tan(f.h) }));
   const bare: number[][] = [];
-  for (const { yaw, pitch } of spherePlacements(samples)) {
-    const pt = [
-      Math.cos(pitch * rad) * Math.sin(yaw * rad),
-      Math.sin(pitch * rad),
-      Math.cos(pitch * rad) * Math.cos(yaw * rad),
-    ];
-    const hit = frames.some(({ ex, ey, c, w, h }) => {
+  for (const pt of samplesOf(samples)) {
+    const hit = bounds.some(({ ex, ey, c, tw, th }) => {
       const depth = dot(pt, c);
       return (
         depth > 0 &&
-        Math.abs(Math.atan2(dot(pt, ex), depth)) <= w &&
-        Math.abs(Math.atan2(dot(pt, ey), depth)) <= h
+        Math.abs(dot(pt, ex)) <= tw * depth &&
+        Math.abs(dot(pt, ey)) <= th * depth
       );
     });
     if (!hit) bare.push(pt);

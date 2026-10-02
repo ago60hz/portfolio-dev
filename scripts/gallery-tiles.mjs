@@ -95,6 +95,26 @@ async function trimCanvas(source) {
   return kept >= KEEP ? data : await whole.toBuffer()
 }
 
+/**
+ * How much colour a print carries: mean HSV saturation over a 32x32 sample.
+ *
+ * The collage spends it. A board that is mostly white UI on white canvas reads
+ * as a pale slab on the ball, so the layout gives those the small tier and
+ * keeps them apart, and gives the hero spots to the prints with the most
+ * colour -- which is a judgement that belongs to the pixels, not to a list
+ * someone has to remember to update.
+ */
+async function saturation(file) {
+  const data = await sharp(file).resize(32, 32, { fit: 'fill' }).removeAlpha().raw().toBuffer()
+  let sum = 0
+  for (let i = 0; i < data.length; i += 3) {
+    const max = Math.max(data[i], data[i + 1], data[i + 2])
+    const min = Math.min(data[i], data[i + 1], data[i + 2])
+    sum += max ? (max - min) / max : 0
+  }
+  return Math.round((sum / (data.length / 3)) * 100) / 100
+}
+
 const tiles = {}
 
 for (const key of await curatedKeys()) {
@@ -117,7 +137,12 @@ for (const key of await curatedKeys()) {
     .webp({ quality: 60 })
     .toFile(out)
 
-  tiles[key] = { src: `/${out.replace('public/', '')}`, width, height }
+  tiles[key] = {
+    src: `/${out.replace('public/', '')}`,
+    width,
+    height,
+    sat: await saturation(out),
+  }
 }
 
 const body = Object.entries(tiles)

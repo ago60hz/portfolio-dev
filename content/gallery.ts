@@ -74,6 +74,8 @@ export type GalleryTile = {
   alt: string;
   /** The study, at the picture: `/work/<slug>#media-<name>`. */
   href: string;
+  /** How much colour it carries, 0-1 (see scripts/gallery-tiles.mjs). */
+  sat: number;
 };
 
 const describe = (key: string) => {
@@ -89,6 +91,7 @@ const describe = (key: string) => {
     height: art.height,
     alt: media.alt,
     href: `/work/${key.split("/")[0]}#${mediaAnchor(media.src)}`,
+    sat: art.sat,
   };
 };
 

@@ -5,7 +5,9 @@ import {
   COVERAGE,
   GAP_X,
   GRID,
+  HEROES,
   LIFT,
+  PALE,
   GAP_Y,
   RADIUS,
   ROLL,
@@ -121,9 +123,10 @@ describe("tileTransforms", () => {
 });
 
 describe("collagePoses", () => {
-  // The real pool, so the chosen deal is tested on the shapes it was chosen for.
+  // The real pool, so the chosen deal is tested on what it was chosen for.
   const pool = GALLERY_TILES.map((t) => t.width / t.height);
-  const poses = collagePoses(pool);
+  const traits = GALLERY_TILES.map((t) => ({ group: t.slug, sat: t.sat }));
+  const poses = collagePoses(pool, undefined, traits);
 
   it("covers the ball with overlap to spare, so no far side shows through", () => {
     const drawn = pool.reduce(
@@ -166,7 +169,9 @@ describe("collagePoses", () => {
 
   it("keeps the stack shallow enough that the outline stays round", () => {
     const deepest = Math.max(...poses.map((p) => p.lift));
-    expect(deepest / RADIUS).toBeLessThanOrEqual(0.12);
+    // An eighth of the radius and a little: the heroes sit a layer above
+    // everything they touch, so their tape is never tucked under a neighbour.
+    expect(deepest / RADIUS).toBeLessThanOrEqual(0.14);
   });
 
   it("has a hierarchy of sizes, not one size", () => {
@@ -174,8 +179,29 @@ describe("collagePoses", () => {
     expect(Math.max(...scales) / Math.min(...scales)).toBeGreaterThan(1.5);
   });
 
+  it("gives the hero spots to the most colourful prints, round the middle", () => {
+    const heroes = poses.flatMap((p, i) => (p.hero ? [i] : []));
+    expect(heroes).toHaveLength(HEROES);
+    const colour = [...traits.map((t) => t.sat)].sort((a, b) => b - a);
+    for (const h of heroes) {
+      expect(traits[h].sat).toBeGreaterThanOrEqual(colour[HEROES - 1]);
+      // On the face of the ball every third of a turn, not on a pole.
+      expect(Math.abs(poses[h].pitch)).toBeLessThanOrEqual(45);
+    }
+    const yaws = heroes.map((h) => ((poses[h].yaw % 360) + 360) % 360).sort((a, b) => a - b);
+    const gaps = yaws.map((y, k) => (k ? y - yaws[k - 1] : y + 360 - yaws.at(-1)!));
+    expect(Math.min(...gaps)).toBeGreaterThan(80);
+  });
+
+  it("prints pale boards small, so colour carries the ball", () => {
+    const pale = poses.filter((_, i) => traits[i].sat < PALE).map((p) => p.scale);
+    const vivid = poses.filter((p, i) => traits[i].sat >= PALE && !p.hero).map((p) => p.scale);
+    const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
+    expect(mean(pale)).toBeLessThan(mean(vivid));
+  });
+
   it("is the same collage on every render", () => {
-    expect(collagePoses(pool)).toEqual(poses);
+    expect(collagePoses(pool, undefined, traits)).toEqual(poses);
   });
 
   it("leaves no hole in the ball for the page to show through", () => {
@@ -185,7 +211,11 @@ describe("collagePoses", () => {
 
 describe("decal", () => {
   const pool = GALLERY_TILES.map((t) => t.width / t.height);
-  const poses = collagePoses(pool);
+  const poses = collagePoses(
+    pool,
+    undefined,
+    GALLERY_TILES.map((t) => ({ group: t.slug, sat: t.sat })),
+  );
   const px = 1.07;
 
   // Apply a CSS matrix3d to a point, the way the browser does.
