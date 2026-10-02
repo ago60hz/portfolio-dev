@@ -5,7 +5,7 @@ import { GALLERY_TILES } from "@/content/gallery";
 import { useEntranceReady } from "@/hooks/useEntranceReady";
 import { usePrefersReducedMotion } from "@/hooks/usePrefersReducedMotion";
 import { useSceneUnit } from "@/hooks/useSceneUnit";
-import { layoutSpread, spherePlacements, tileTransforms } from "@/lib/globe";
+import { collagePoses, layoutSpread, tileTransforms } from "@/lib/globe";
 import { DURATION, bootDelay } from "@/lib/motion";
 import { useKitchen } from "@/lib/store";
 import { GlobeTile } from "./GlobeTile";
@@ -85,15 +85,17 @@ export function GlobeGallery() {
   const unit = useSceneUnit(rulerRef, 100);
 
   const { slots, periodX, periodY, tiles } = useMemo(() => {
-    const spread = layoutSpread(GALLERY_TILES.map((t) => t.width / t.height));
-    const places = spherePlacements(GALLERY_TILES.length);
+    const aspects = GALLERY_TILES.map((t) => t.width / t.height);
+    const spread = layoutSpread(aspects);
+    const poses = collagePoses(aspects);
     const reach = Math.max(...spread.slots.map((s) => Math.hypot(s.x, s.y)), 1);
     return {
       ...spread,
       tiles: GALLERY_TILES.map((tile, i) => ({
         tile,
         slot: spread.slots[i],
-        ...tileTransforms(places[i], spread.slots[i]),
+        pose: poses[i],
+        ...tileTransforms(poses[i], spread.slots[i]),
         // A radial beat: the middle of the spread leaves first and the corners
         // follow it in. Capped at two beats, because the reference dissolves
         // the whole grid inside a fifth of the travel -- any longer and the
@@ -220,8 +222,8 @@ export function GlobeGallery() {
   /*
    * The pictures are fetched once the room has landed AND finished arriving.
    *
-   * Twenty-two thumbnails is 132KB -- small, but it is 132KB nobody asked for,
-   * and in flight during the entrance it is 132KB competing with the cans.
+   * Twenty-two thumbnails is 175KB -- small, but it is 175KB nobody asked for,
+   * and in flight during the entrance it is 175KB competing with the cans.
    * Waiting out the beat table and then asking for idle time puts them after
    * the kitchen is usable and still long before anyone pulls the tag. The
    * fallback covers Safari, which has no requestIdleCallback.
@@ -309,7 +311,7 @@ export function GlobeGallery() {
 
       <div ref={spinRef} className="globe-spin">
         {(armed || open) &&
-          tiles.map(({ tile, slot, globe, grid, delay }, i) => (
+          tiles.map(({ tile, slot, pose, globe, grid, delay }, i) => (
             <GlobeTile
               key={tile.key}
               tile={tile}
@@ -317,11 +319,15 @@ export function GlobeGallery() {
               elRef={(el) => void (tileRefs.current[i] = el)}
               style={
                 {
-                  "--tw": `calc(${slot.w} * var(--u))`,
-                  "--th": `calc(${slot.h.toFixed(2)} * var(--u))`,
+                  // Laid out at the print's size on the ball; the wall pose
+                  // scales it back down to its slot (see tileTransforms).
+                  "--tw": `calc(${(slot.w * pose.scale).toFixed(2)} * var(--u))`,
+                  "--th": `calc(${(slot.h * pose.scale).toFixed(2)} * var(--u))`,
                   "--t-globe": globe,
                   "--t-grid": grid,
                   "--tile-delay": `${delay.toFixed(0)}ms`,
+                  "--bend-step": `${pose.bendStep.toFixed(3)}deg`,
+                  "--fold-step": `${pose.foldStep.toFixed(3)}deg`,
                 } as React.CSSProperties
               }
             />

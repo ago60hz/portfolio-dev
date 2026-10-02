@@ -3,11 +3,11 @@
 import Link from "next/link";
 import type { CSSProperties, ReactNode, RefObject } from "react";
 import type { GalleryTile } from "@/content/gallery";
-import { BEND_STEP, STRIPS } from "@/lib/globe";
+import { STRIPS } from "@/lib/globe";
 import { useKitchen } from "@/lib/store";
 
 /**
- * One side of a tile's hinge chain, built from the centre outward.
+ * One side of a row's hinge chain, built from the centre outward.
  *
  * Nested, not siblings, and that is the whole mechanism: each strip is hinged
  * to the one inside it, so turning every hinge by the same small angle bends
@@ -17,8 +17,7 @@ import { useKitchen } from "@/lib/store";
  * the sphere when it is a whole step.
  *
  * `k` is the strip's column in the picture, which is all its face needs to
- * show the right slice. `r0`/`r1` are how far its inner and outer edges sit
- * from the centre, in strips, for the shading.
+ * show the right slice.
  */
 function chain(side: "l" | "r"): ReactNode {
   const half = STRIPS / 2;
@@ -33,7 +32,7 @@ function chain(side: "l" | "r"): ReactNode {
         data-side={side}
         data-root={depth === 0 || undefined}
         data-end={depth === ks.length - 1 || undefined}
-        style={{ "--k": k, "--r0": depth, "--r1": depth + 1 } as CSSProperties}
+        style={{ "--k": k } as CSSProperties}
       >
         {inner}
       </span>
@@ -54,8 +53,8 @@ function chain(side: "l" | "r"): ReactNode {
  *
  * The picture is painted by the strips as a background, not by an <img>. Each
  * strip shows one slice of the same URL, so it is still one request and one
- * decode per tile -- the pool is generated at 300px by scripts/gallery-tiles.mjs
- * precisely so that this costs 132KB in all. The link carries the alt text
+ * decode per tile -- the pool is generated at 480px by scripts/gallery-tiles.mjs
+ * precisely so that this costs 175KB in all. The link carries the alt text
  * instead, which is where a screen reader looks for a link's name anyway.
  */
 export function GlobeTile({
@@ -91,7 +90,6 @@ export function GlobeTile({
           ...style,
           "--src": `url(${JSON.stringify(tile.src)})`,
           "--strips": STRIPS,
-          "--bend-step": `${BEND_STEP.toFixed(3)}deg`,
         } as CSSProperties
       }
       draggable={false}
@@ -106,8 +104,24 @@ export function GlobeTile({
         useKitchen.getState().setLeavingKitchen(true);
       }}
     >
-      {chain("l")}
-      {chain("r")}
+      {/* Three rows: a flat middle with a row hinged above and below it, each
+          carrying its own pair of strip chains. The rows curve the print top
+          to bottom and the strips side to side, so it lies on the ball in
+          both directions instead of standing proud of it at its top and
+          bottom edges -- which is where neighbouring prints used to cut
+          through it. */}
+      <span className="globe-row" data-row="m">
+        {chain("l")}
+        {chain("r")}
+        <span className="globe-row" data-row="t">
+          {chain("l")}
+          {chain("r")}
+        </span>
+        <span className="globe-row" data-row="b">
+          {chain("l")}
+          {chain("r")}
+        </span>
+      </span>
     </Link>
   );
 }

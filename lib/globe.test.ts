@@ -1,13 +1,16 @@
 import { describe, expect, it } from "vitest";
 import {
-  BEND_STEP,
   COLUMNS,
+  COVERAGE,
   GAP_X,
+  LIFT,
+  ROWS,
   GAP_Y,
-  GLOBE_SCALE,
   RADIUS,
+  ROLL,
   STRIPS,
   TILE_W,
+  collagePoses,
   layoutSpread,
   spherePlacements,
   tileTransforms,
@@ -82,14 +85,14 @@ describe("layoutSpread", () => {
 });
 
 describe("tileTransforms", () => {
-  const [placement] = spherePlacements(9);
+  const [pose] = collagePoses(aspects(9));
   const [slot] = layoutSpread(aspects(9)).slots;
-  const { globe, grid } = tileTransforms(placement, slot);
+  const { globe, grid } = tileTransforms(pose, slot);
   // Only the transform functions themselves. A naive `\w+\(` also catches the
   // calc() and var() inside their arguments, which differ between the two
   // poses by design and say nothing about whether CSS can interpolate them.
   const functionsOf = (t: string) =>
-    t.match(/(?:translate3d|translateZ|rotateX|rotateY|scale)\(/g);
+    t.match(/(?:translate3d|translateZ|rotateX|rotateY|rotateZ|scale)\(/g);
 
   it("gives both poses the same function list", () => {
     // The whole morph rests on this: CSS only interpolates two transforms
@@ -107,37 +110,99 @@ describe("tileTransforms", () => {
 
   it("flattens in the spread and leaves the plane on the sphere", () => {
     expect(grid).toContain("rotateY(0deg)");
+    expect(grid).toContain("rotateZ(0deg)");
     expect(grid).toContain("translateZ(0px)");
     expect(globe).toContain("translate3d(0px, 0px, 0px)");
   });
 });
 
-describe("the bend", () => {
-  it("wraps a tile's whole width around the sphere, no further", () => {
-    // In the tile's own space, which is scaled down after it is pushed out.
-    const radius = RADIUS / GLOBE_SCALE;
-    const arc = (TILE_W / radius) * (180 / Math.PI);
-    expect(BEND_STEP * STRIPS).toBeCloseTo(arc, 6);
+describe("collagePoses", () => {
+  // The real pool's shapes: one 2.38 banner, the rest 16:9 to 4:3.
+  const pool = [2.38, ...Array(8).fill(1.78), 1.42, 1.58, ...Array(11).fill(1.33)];
+  const poses = collagePoses(pool);
+
+  it("covers the ball with overlap to spare, so no far side shows through", () => {
+    const drawn = pool.reduce(
+      (sum, a, i) => sum + TILE_W * (TILE_W / a) * poses[i].scale ** 2,
+      0,
+    );
+    expect(drawn / (4 * Math.PI * RADIUS ** 2)).toBeCloseTo(COVERAGE, 6);
   });
 
-  it("lands every hinge on the sphere's surface", () => {
-    // Walk the strip chain out from the tile's centre the way the CSS does:
-    // the first hinge turns half a step, every hinge after it a whole one.
-    const radius = RADIUS / GLOBE_SCALE;
-    const strip = TILE_W / STRIPS;
-    const rad = (d: number) => (d * Math.PI) / 180;
-    let x = 0;
-    let z = 0;
-    for (let j = 0; j < STRIPS / 2; j++) {
-      const turn = rad(BEND_STEP / 2 + j * BEND_STEP);
-      x += strip * Math.cos(turn);
-      z -= strip * Math.sin(turn);
-      // The sphere's centre sits `radius` behind the tangent point. A chord
-      // falls slightly inside the arc it spans, so this is a tolerance rather
-      // than an equality -- about half a unit at the tile's edge.
-      expect(Math.hypot(x, z + radius)).toBeGreaterThan(radius - 1);
-      expect(Math.hypot(x, z + radius)).toBeLessThan(radius + 1);
+  it("leans every print by hand, but never far enough to lose the ball", () => {
+    for (const p of poses) expect(Math.abs(p.roll)).toBeLessThanOrEqual(ROLL);
+    // ...and not all the same way, which would read as a twist, not a hand.
+    expect(poses.some((p) => p.roll > 1) && poses.some((p) => p.roll < -1)).toBe(true);
+  });
+
+  it("never puts two overlapping prints on the same layer", () => {
+    // Overlapping prints closer than one LIFT apart cut through each other.
+    const rad = Math.PI / 180;
+    const dir = (p: (typeof poses)[number]) => [
+      Math.cos(p.pitch * rad) * Math.sin(p.yaw * rad),
+      Math.sin(p.pitch * rad),
+      Math.cos(p.pitch * rad) * Math.cos(p.yaw * rad),
+    ];
+    const reach = (i: number) =>
+      (Math.hypot(TILE_W, TILE_W / pool[i]) * poses[i].scale) / 2 / RADIUS;
+    let pairs = 0;
+    for (let a = 0; a < poses.length; a++) {
+      for (let b = a + 1; b < poses.length; b++) {
+        const [da, db] = [dir(poses[a]), dir(poses[b])];
+        const angle = Math.acos(Math.min(1, da.reduce((d, v, k) => d + v * db[k], 0)));
+        if (angle >= reach(a) + reach(b)) continue;
+        pairs++;
+        expect(Math.abs(poses[a].lift - poses[b].lift)).toBeGreaterThanOrEqual(LIFT);
+      }
     }
+    // It is a collage: plenty of prints really do overlap.
+    expect(pairs).toBeGreaterThan(poses.length);
+  });
+
+  it("keeps the stack shallow enough that the outline stays round", () => {
+    const deepest = Math.max(...poses.map((p) => p.lift));
+    expect(deepest / RADIUS).toBeLessThanOrEqual(0.1);
+  });
+
+  it("has a hierarchy of sizes, not one size", () => {
+    const scales = poses.map((p) => p.scale);
+    expect(Math.max(...scales) / Math.min(...scales)).toBeGreaterThan(1.5);
+  });
+
+  it("is the same collage on every render", () => {
+    expect(collagePoses(pool)).toEqual(poses);
+  });
+
+  it("lands every hinge of every print on its own layer of the sphere", () => {
+    // Walk each chain out from the print's centre the way the CSS does. Across:
+    // the first hinge turns half a step, every hinge after it a whole one.
+    // Down: the middle row is flat and the rows either side turn a whole step.
+    // A print is laid out at its drawn size, so its sphere is just R + lift.
+    const rad = (d: number) => (d * Math.PI) / 180;
+    const off = (x: number, z: number, radius: number) =>
+      Math.abs(Math.hypot(x, z + radius) - radius);
+    poses.forEach((p, i) => {
+      const radius = RADIUS + p.lift;
+      const strip = (TILE_W * p.scale) / STRIPS;
+      let x = 0;
+      let z = 0;
+      for (let j = 0; j < STRIPS / 2; j++) {
+        const turn = rad(p.bendStep / 2 + j * p.bendStep);
+        x += strip * Math.cos(turn);
+        z -= strip * Math.sin(turn);
+        expect(off(x, z, radius)).toBeLessThan(0.01);
+      }
+      const row = ((TILE_W / pool[i]) * p.scale) / ROWS;
+      // The middle row is a flat tangent: its edge sits just off the ball,
+      // by less than one LIFT, so no neighbour can reach through it...
+      let y = row / 2;
+      z = 0;
+      expect(off(y, z, radius)).toBeLessThan(LIFT);
+      // ...and the outer row's far edge lands back on it exactly.
+      y += row * Math.cos(rad(p.foldStep));
+      z -= row * Math.sin(rad(p.foldStep));
+      expect(off(y, z, radius)).toBeLessThan(0.01);
+    });
   });
 
   it("cuts into an even number of strips, so the crease falls on the centre", () => {

@@ -1294,29 +1294,52 @@ body {
       --bend var(--duration-state) var(--ease-slow-down) var(--tile-delay, 0ms);
   }
 
-  /* A strip of the picture, hinged to the strip inside it.
+  /* A print's three rows: a flat middle, and a row hinged off its top and
+     bottom edges, each turned back away from the viewer by the arc one row
+     spans on the ball. Nested in the middle row, so the hinges are its edges
+     and the turns need no positions of their own. */
+  .globe-row {
+    position: absolute;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    transform-style: preserve-3d;
+  }
 
-     The element is the BACK: a paper card, visible from both sides. Its
-     ::before is the face, half a pixel proud of it and hidden from behind, so
-     each strip shows the picture from the front and white from the back with
-     nothing coplanar to fight over depth. That white is structural, not
-     decoration -- half the sphere faces away, and without a back the far side
-     is empty and twenty-two pictures read as a ring rather than as a ball.
+  .globe-row[data-row="m"] {
+    top: calc(100% / 3);
+    height: calc(100% / 3);
+    --face-top: calc(var(--th) / 3 - 2px);
+  }
 
-     The hairline along the top and bottom edges is the silhouette those white
-     backs need against a white ground. Drawn as offset shadows, which cost no
-     layout and leave the box the hinge turns about alone. */
+  .globe-row[data-row="t"] {
+    top: -100%;
+    transform-origin: 50% 100%;
+    transform: rotateX(calc(var(--bend) * var(--fold-step)));
+    --face-top: 0px;
+    --edge-t: var(--print-edge);
+  }
+
+  .globe-row[data-row="b"] {
+    top: 100%;
+    transform-origin: 50% 0;
+    transform: rotateX(calc(var(--bend) * var(--fold-step) * -1));
+    --face-top: calc(var(--th) * 2 / 3 - 2px);
+    --edge-b: var(--print-edge);
+  }
+
+  /* A strip of a row, hinged to the strip inside it. It paints nothing: its
+     ::before is the whole print -- picture, paper margin and edge in one
+     plane -- and it is hidden from behind. A separate white back used to
+     double every plane in the globe for a far side that, at this coverage,
+     nobody can see. */
   .globe-arc {
     position: absolute;
     top: 0;
     width: 100%;
     height: 100%;
     transform-style: preserve-3d;
-    background: var(--color-kitchen-paper);
-    box-shadow:
-      0 -1px 0 rgb(0 0 0 / 0.08),
-      0 1px 0 rgb(0 0 0 / 0.08);
-    /* The root hinge is the tile's centre crease, shared between two strips,
+    /* The root hinge is the row's centre crease, shared between two strips,
        so each takes half a step there and a whole one at every hinge after. */
     --hinge: 1;
     transform: rotateY(calc(var(--bend) * var(--hinge) * var(--dir) * var(--bend-step)));
@@ -1334,76 +1357,94 @@ body {
     --dir: -1;
   }
 
-  .globe-tile > .globe-arc {
+  .globe-row > .globe-arc {
     --hinge: 0.5;
     width: calc(100% / var(--strips));
   }
 
-  .globe-tile > .globe-arc[data-side="r"] {
+  .globe-row > .globe-arc[data-side="r"] {
     left: 50%;
   }
 
-  .globe-tile > .globe-arc[data-side="l"] {
+  .globe-row > .globe-arc[data-side="l"] {
     left: calc(50% - 100% / var(--strips));
   }
 
-  .globe-arc[data-end][data-side="r"] {
-    border-radius: 0 calc(2 * var(--u)) calc(2 * var(--u)) 0;
-    box-shadow:
-      0 -1px 0 rgb(0 0 0 / 0.08),
-      0 1px 0 rgb(0 0 0 / 0.08),
-      1px 0 0 rgb(0 0 0 / 0.08);
-  }
-
   .globe-arc[data-end][data-side="l"] {
-    border-radius: calc(2 * var(--u)) 0 0 calc(2 * var(--u));
-    box-shadow:
-      0 -1px 0 rgb(0 0 0 / 0.08),
-      0 1px 0 rgb(0 0 0 / 0.08),
-      -1px 0 0 rgb(0 0 0 / 0.08);
+    --edge-l: var(--print-edge);
   }
 
-  /* The face: one slice of the picture, and the light falling across it.
+  .globe-arc[data-end][data-side="r"] {
+    --edge-r: var(--print-edge);
+  }
 
-     The shade darkens with the square of the distance from the centre crease,
-     which is roughly how a curved print falls away from a light in front of
-     it. Each strip runs a gradient from its inner edge's value to its outer
-     edge's, so the tone is continuous across the hinges -- that is what hides
-     the facets, far more than more strips would. It scales with --bend, so a
-     picture flat on the wall is lit flat. */
-  /* Each face also runs a pixel past both of its edges. Two faces that
-     merely MEET antialias their shared edge from both sides, and the white
-     back behind them shows through as a hairline down every hinge. Overlapped,
-     the neighbours paint the same pixels of the same picture, so there is
-     nothing to see. Which is why the slice is placed in lengths off the tile's
-     own width rather than in percentages: a percentage would be of the face,
-     and the face is no longer exactly one strip wide. */
+  /* The print: one patch of the picture on its paper.
+
+     No shading. The curve is carried by the geometry -- the silhouettes, the
+     perspective, the overlaps -- and a grey gradient laid over every print
+     only dirtied the colour of the work it was meant to flatter.
+
+     The paper margin is what makes the globe a collage of PRINTS rather than
+     a mosaic of screens: where two overlap, the white border of the top one
+     separates them the way a photo's does on a pinboard. It is the face's own
+     ground showing round a picture drawn smaller than it, so it costs nothing.
+
+     Inside the patchwork every face runs two pixels past its neighbours --
+     two, because the wall draws a print at its slot size, a fraction of its
+     laid-out size, and one pixel scaled down came to less than a device
+     pixel and let the page through as a faint grid across every picture. Two
+     faces that merely MEET antialias their shared edge from both sides and
+     the page shows through as a hairline down every hinge; overlapped, they
+     paint the same pixels of the same picture and there is nothing to see.
+     Which is why the picture is placed in lengths off the print's own size:
+     a percentage would be of the face, and no face is exactly its share. */
+  /* The keyline is the site's own ink stroke, so the collage is drawn in the
+     same hand as the cans, the tags and the Window -- and the paper is pure
+     white rather than the page's paper, so a print lifts off the ground by
+     colour alone, with no shadow under it. */
+  .globe-tile {
+    --print-edge: var(--color-kitchen-ink);
+  }
+
   .globe-arc::before {
     content: "";
     position: absolute;
-    inset: 0 -1px;
-    border-radius: inherit;
-    --shade: calc(var(--bend) * 0.045);
-    background-image:
-      linear-gradient(
-        var(--shade-to, to right),
-        rgb(0 0 0 / calc(var(--shade) * var(--r0) * var(--r0))),
-        rgb(0 0 0 / calc(var(--shade) * var(--r1) * var(--r1)))
-      ),
-      var(--src);
-    background-size:
-      100% 100%,
-      var(--tw) 100%;
+    --m: calc(2.5 * var(--u));
+    --face-left: calc(var(--k) * var(--tw) / var(--strips) - 2px);
+    inset: -2px;
+    background-color: #fff;
+    background-image: var(--src);
+    background-repeat: no-repeat;
+    background-size: calc(var(--tw) - 2 * var(--m)) calc(var(--th) - 2 * var(--m));
     background-position:
-      0 0,
-      calc(1px - var(--k) * var(--tw) / var(--strips)) 0;
+      calc(var(--m) - var(--face-left)) calc(var(--m) - var(--face-top));
+    /* The print's outer edge, and only its outer edge: each patch draws the
+       sides it owns, so no line ever runs down a crease. */
+    box-shadow:
+      0 -1px 0 var(--edge-t, transparent),
+      0 1px 0 var(--edge-b, transparent),
+      -1px 0 0 var(--edge-l, transparent),
+      1px 0 0 var(--edge-r, transparent);
     backface-visibility: hidden;
-    transform: translateZ(0.5px);
     transition: filter var(--duration-state) var(--ease-smooth);
   }
 
-  .globe-arc[data-side="l"]::before {
-    --shade-to: to left;
+  /* The outer edges sit exactly on the print's border, not past it. */
+  .globe-row[data-row="t"] .globe-arc::before {
+    top: 0;
+  }
+
+  .globe-row[data-row="b"] .globe-arc::before {
+    bottom: 0;
+  }
+
+  .globe-arc[data-end][data-side="l"]::before {
+    --face-left: 0px;
+    left: 0;
+  }
+
+  .globe-arc[data-end][data-side="r"]::before {
+    right: 0;
   }
 
   /* Hover is the only affordance a tile has: it says "this is a link" without
@@ -1517,9 +1558,6 @@ body {
     border-top: 0;
     border-bottom-width: 2px;
     border-radius: 0 0 var(--tag-r) var(--tag-r);
-    /* Tucked under the rule: a soft shadow off the header's edge is what
-       makes this read as hanging BEHIND the strip rather than stuck on it. */
-    box-shadow: inset 0 6px 6px -6px rgb(0 0 0 / 0.28);
     cursor: grab;
     touch-action: none;
     /* Present at both ends of the pull and gone through the middle, where the

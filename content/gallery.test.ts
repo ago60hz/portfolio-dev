@@ -47,9 +47,10 @@ describe("GALLERY_TILES", () => {
   it("serves resized thumbnails, never the article's artwork", () => {
     for (const tile of GALLERY_TILES) {
       expect(tile.src).toMatch(/^\/assets\/gallery-tiles\//);
-      // The pool is generated at 300px. Anything wider means a stale run of
-      // scripts/gallery-tiles.mjs and forty full-size images on the globe.
-      expect(tile.width).toBeLessThanOrEqual(300);
+      // The pool is generated at 480px, 2x the widest print on the collage.
+      // Anything wider means a stale run of scripts/gallery-tiles.mjs and
+      // full-size artwork on the globe.
+      expect(tile.width).toBeLessThanOrEqual(480);
     }
   });
 
