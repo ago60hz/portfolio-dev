@@ -76,6 +76,8 @@ export type GalleryTile = {
   href: string;
   /** How much colour it carries, 0-1 (see scripts/gallery-tiles.mjs). */
   sat: number;
+  /** How sharp it reads: Laplacian variance at 320px (same script). */
+  crisp: number;
 };
 
 const describe = (key: string) => {
@@ -92,6 +94,7 @@ const describe = (key: string) => {
     alt: media.alt,
     href: `/work/${key.split("/")[0]}#${mediaAnchor(media.src)}`,
     sat: art.sat,
+    crisp: art.crisp,
   };
 };
 

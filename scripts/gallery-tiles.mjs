@@ -115,6 +115,28 @@ async function saturation(file) {
   return Math.round((sum / (data.length / 3)) * 100) / 100
 }
 
+/**
+ * How sharp a print reads: the variance of its Laplacian at 320px wide.
+ *
+ * A soft source -- a holographic gradient, a blurred photograph -- looks out
+ * of focus the moment it is drawn large, so the layout keeps soft prints off
+ * the hero spots and out of the body tier however much colour they carry.
+ */
+async function crispness(file) {
+  const data = await sharp(file)
+    .resize(320)
+    .greyscale()
+    .convolve({ width: 3, height: 3, kernel: [0, 1, 0, 1, -4, 1, 0, 1, 0] })
+    .raw()
+    .toBuffer()
+  let mean = 0
+  for (const v of data) mean += v
+  mean /= data.length
+  let variance = 0
+  for (const v of data) variance += (v - mean) ** 2
+  return Math.round(variance / data.length)
+}
+
 const tiles = {}
 
 for (const key of await curatedKeys()) {
@@ -142,6 +164,7 @@ for (const key of await curatedKeys()) {
     width,
     height,
     sat: await saturation(out),
+    crisp: await crispness(out),
   }
 }
 

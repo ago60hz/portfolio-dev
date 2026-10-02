@@ -1368,7 +1368,8 @@ body {
   }
 
   /* The heroes are taped on: a leaning strip half on the print and half off
-     it, lime or purple with an ink edge on its long sides -- the brand's two
+     it, opaque -- see-through, the print's keyline ran through it like a
+     strikethrough -- lime or purple with an ink edge on its long sides -- the brand's two
      colours, carried on the prints the collage is built around instead of on
      chrome around them. Its own little decal (lib/globe -- `tapeFor`), so on
      the ball it wraps with the paper, and on the wall it lies flat at the
@@ -1379,7 +1380,6 @@ body {
     transform-origin: 0 0;
     background: var(--tape-colour);
     border-block: 1px solid var(--color-kitchen-ink);
-    opacity: 0.94;
     backface-visibility: hidden;
     transform: var(--flat);
     transition: transform var(--duration-state) var(--ease-slow-down) var(--tile-delay, 0ms);

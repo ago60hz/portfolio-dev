@@ -8,6 +8,7 @@ import {
   HEROES,
   LIFT,
   PALE,
+  SOFT,
   GAP_Y,
   RADIUS,
   ROLL,
@@ -125,7 +126,7 @@ describe("tileTransforms", () => {
 describe("collagePoses", () => {
   // The real pool, so the chosen deal is tested on what it was chosen for.
   const pool = GALLERY_TILES.map((t) => t.width / t.height);
-  const traits = GALLERY_TILES.map((t) => ({ group: t.slug, sat: t.sat }));
+  const traits = GALLERY_TILES.map((t) => ({ group: t.slug, sat: t.sat, crisp: t.crisp }));
   const poses = collagePoses(pool, undefined, traits);
 
   it("covers the ball with overlap to spare, so no far side shows through", () => {
@@ -182,9 +183,10 @@ describe("collagePoses", () => {
   it("gives the hero spots to the most colourful prints, round the middle", () => {
     const heroes = poses.flatMap((p, i) => (p.hero ? [i] : []));
     expect(heroes).toHaveLength(HEROES);
-    const colour = [...traits.map((t) => t.sat)].sort((a, b) => b - a);
     for (const h of heroes) {
-      expect(traits[h].sat).toBeGreaterThanOrEqual(colour[HEROES - 1]);
+      // Colourful and sharp: no soft source is ever drawn hero-size.
+      expect(traits[h].sat).toBeGreaterThan(0.3);
+      expect(traits[h].crisp).toBeGreaterThanOrEqual(SOFT);
       // On the face of the ball every third of a turn, not on a pole.
       expect(Math.abs(poses[h].pitch)).toBeLessThanOrEqual(45);
     }
@@ -193,9 +195,10 @@ describe("collagePoses", () => {
     expect(Math.min(...gaps)).toBeGreaterThan(80);
   });
 
-  it("prints pale boards small, so colour carries the ball", () => {
-    const pale = poses.filter((_, i) => traits[i].sat < PALE).map((p) => p.scale);
-    const vivid = poses.filter((p, i) => traits[i].sat >= PALE && !p.hero).map((p) => p.scale);
+  it("prints pale and soft boards small, so crisp colour carries the ball", () => {
+    const quiet = (i: number) => traits[i].sat < PALE || traits[i].crisp < SOFT;
+    const pale = poses.filter((_, i) => quiet(i)).map((p) => p.scale);
+    const vivid = poses.filter((p, i) => !quiet(i) && !p.hero).map((p) => p.scale);
     const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
     expect(mean(pale)).toBeLessThan(mean(vivid));
   });
@@ -214,7 +217,7 @@ describe("decal", () => {
   const poses = collagePoses(
     pool,
     undefined,
-    GALLERY_TILES.map((t) => ({ group: t.slug, sat: t.sat })),
+    GALLERY_TILES.map((t) => ({ group: t.slug, sat: t.sat, crisp: t.crisp })),
   );
   const px = 1.07;
 

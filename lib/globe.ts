@@ -71,6 +71,9 @@ export const SIZE_TIERS = { hero: 1.25, body: 1, small: 0.86 } as const;
  *  canvas. Pale prints take the small tier and are kept apart. */
 export const PALE = 0.12;
 
+/** Below this sharpness a print is soft, and is never drawn large. */
+export const SOFT = 400;
+
 /** How many heroes the collage is built around. */
 export const HEROES = 3;
 
@@ -80,7 +83,15 @@ export type Trait = {
   group: string;
   /** Mean saturation, 0-1: who gets the hero spots, and who is pale. */
   sat: number;
+  /** Laplacian variance: a soft print never takes a large tier. */
+  crisp?: number;
 };
+
+/** Pale or soft: either way, a print the collage should not lean on. */
+const quiet = (t: Trait) => t.sat < PALE || (t.crisp ?? Infinity) < SOFT;
+
+/** What a print earns a hero spot with: colour, but only if it is sharp. */
+const heroScore = (t: Trait) => t.sat * Math.min(1, (t.crisp ?? 600) / 600);
 
 /** The most a print leans off square, either way. Enough to read as laid by
  *  hand, little enough that the ball still reads as a ball. */
@@ -106,9 +117,9 @@ export const LIFT = 4;
  * apart -- one showed the page through the equator at the same spot in every
  * capture. `closeHoles` repairs most of that, and the deal is still chosen
  * rather than taken: of the first two hundred, this one closes up best
- * (0.2% bare) with the shallowest stack. `uncovered`'s test holds it there.
+ * (0.3% bare) with the shallowest stack. `uncovered`'s test holds it there.
  */
-export const DEAL = 2;
+export const DEAL = 131;
 
 /** The golden angle, which is what makes a Fibonacci sphere even. */
 const GOLDEN = Math.PI * (3 - Math.sqrt(5));
@@ -197,7 +208,7 @@ export function collagePoses(
   const size = slots.map((img, s) =>
     heroSlots.has(s)
       ? SIZE_TIERS.hero
-      : traits[img].sat < PALE
+      : quiet(traits[img])
         ? SIZE_TIERS.small
         : SIZE_TIERS.body,
   );
@@ -291,16 +302,17 @@ function heroSpots(spiral: Placement[]) {
 /**
  * Which picture goes on which spiral position.
  *
- * The heroes are the pictures with the most colour. Everything else is
- * placed to keep alike prints apart: a pair from the same study, or two pale
- * prints, costs more the closer they sit. Pairwise swaps until no swap helps
+ * The heroes are the sharpest pictures with the most colour. Everything else
+ * is placed to keep alike prints apart: a pair from the same study, or two
+ * quiet ones (pale or soft), costs more the closer they sit -- the quiet pair
+ * most, because a patch of them reads as a pale hemisphere. Pairwise swaps until no swap helps
  * -- a local optimum, which at twenty-two prints is a good one, and
  * deterministic.
  */
 function assignSlots(unit: number[][], spiral: Placement[], traits: Trait[]) {
   const n = unit.length;
   const heroSlots = heroSpots(spiral);
-  const byColour = traits.map((_, i) => i).sort((a, b) => traits[b].sat - traits[a].sat);
+  const byColour = traits.map((_, i) => i).sort((a, b) => heroScore(traits[b]) - heroScore(traits[a]));
   const heroes = byColour.slice(0, heroSlots.length);
   const rest = traits.map((_, i) => i).filter((i) => !heroes.includes(i));
   const slots = new Array<number>(n);
@@ -314,7 +326,7 @@ function assignSlots(unit: number[][], spiral: Placement[], traits: Trait[]) {
   );
   const alike = (x: number, y: number) =>
     (traits[x].group && traits[x].group === traits[y].group ? 1 : 0) +
-    (traits[x].sat < PALE && traits[y].sat < PALE ? 1.5 : 0);
+    (quiet(traits[x]) && quiet(traits[y]) ? 3 : 0);
   // What swapping the pictures at a and b changes, against everyone else --
   // a and b's own pairing is the same either way round.
   const delta = (a: number, b: number) => {
@@ -554,7 +566,10 @@ export function tapeFor(pose: Pose, aspect: number, px: number, nth: number): Ta
     const [du, dv] = [u - w / 2, v - h / 2];
     return [x + w / 2 + du * c - dv * s, y + h / 2 + du * s + dv * c];
   };
-  const above = 1.5 * px;
+  // Above the print by more than the tape's own sag: it is one flat piece,
+  // so its middle dips inside the sphere by its sagitta, and lifted only a
+  // hair the print came up through it as a dark bar.
+  const above = Math.hypot(w, h) ** 2 / (8 * rho) + 1.5 * px;
   const onBall = (u: number, v: number) => {
     const [tx, ty] = at(u, v);
     const [X, Y, Z] = sphereAt(tx - W / 2, ty - H / 2, rho, W / 2, H / 2);
