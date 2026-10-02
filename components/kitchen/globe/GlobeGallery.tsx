@@ -5,7 +5,7 @@ import { GALLERY_TILES } from "@/content/gallery";
 import { useEntranceReady } from "@/hooks/useEntranceReady";
 import { usePrefersReducedMotion } from "@/hooks/usePrefersReducedMotion";
 import { useSceneUnit } from "@/hooks/useSceneUnit";
-import { collagePoses, layoutSpread, tileTransforms } from "@/lib/globe";
+import { TILE_W, collagePoses, decal, layoutSpread, tapeFor, tileTransforms } from "@/lib/globe";
 import { DURATION, bootDelay } from "@/lib/motion";
 import { useKitchen } from "@/lib/store";
 import { GlobeTile } from "./GlobeTile";
@@ -84,6 +84,28 @@ export function GlobeGallery() {
 
   const unit = useSceneUnit(rulerRef, 100);
 
+  /*
+   * The scene unit to a fraction of a pixel, for the decals.
+   *
+   * useSceneUnit reads a whole-pixel offsetWidth, which is fine for a scroll
+   * and 1% out for a matrix -- enough to open a seam between patches laid out
+   * in --u and transforms computed in pixels. A ruler a thousand units long,
+   * read through borderBoxSize (fractional, and blind to the boot's scale),
+   * is good to a thousandth.
+   */
+  const fineRef = useRef<HTMLSpanElement>(null);
+  const [px, setPx] = useState(0);
+  useEffect(() => {
+    const el = fineRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => {
+      const w = entry.borderBoxSize?.[0]?.inlineSize ?? el.offsetWidth;
+      setPx(w / 1000);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
   const { slots, periodX, periodY, tiles } = useMemo(() => {
     const aspects = GALLERY_TILES.map((t) => t.width / t.height);
     const spread = layoutSpread(aspects);
@@ -95,6 +117,7 @@ export function GlobeGallery() {
         tile,
         slot: spread.slots[i],
         pose: poses[i],
+        aspect: aspects[i],
         ...tileTransforms(poses[i], spread.slots[i]),
         // A radial beat: the middle of the spread leaves first and the corners
         // follow it in. Capped at two beats, because the reference dissolves
@@ -104,6 +127,19 @@ export function GlobeGallery() {
       })),
     };
   }, []);
+
+  // The decals, in pixels: recomputed only when the scene unit moves, which
+  // is a resize and nothing else.
+  const decals = useMemo(() => {
+    if (!px) return null;
+    let heroes = 0;
+    return tiles.map(({ pose, aspect }) => ({
+      w: TILE_W * pose.layout * px,
+      h: (TILE_W / aspect) * pose.layout * px,
+      patches: decal(pose, aspect, px),
+      tape: pose.hero ? tapeFor(pose, aspect, px, heroes++) : undefined,
+    }));
+  }, [px, tiles]);
 
   const idle = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dwell = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -222,8 +258,8 @@ export function GlobeGallery() {
   /*
    * The pictures are fetched once the room has landed AND finished arriving.
    *
-   * Twenty-two thumbnails is 175KB -- small, but it is 175KB nobody asked for,
-   * and in flight during the entrance it is 175KB competing with the cans.
+   * Twenty-two thumbnails is 291KB -- small, but it is 291KB nobody asked for,
+   * and in flight during the entrance it is 291KB competing with the cans.
    * Waiting out the beat table and then asking for idle time puts them after
    * the kitchen is usable and still long before anyone pulls the tag. The
    * fallback covers Safari, which has no requestIdleCallback.
@@ -308,27 +344,33 @@ export function GlobeGallery() {
         aria-hidden
         className="pointer-events-none absolute h-0 w-[calc(100*var(--u))]"
       />
+      <span
+        ref={fineRef}
+        aria-hidden
+        className="pointer-events-none absolute h-0 w-[calc(1000*var(--u))]"
+      />
 
       <div ref={spinRef} className="globe-spin">
         {(armed || open) &&
-          tiles.map(({ tile, slot, pose, globe, grid, delay }, i) => (
+          decals &&
+          tiles.map(({ tile, globe, grid, delay }, i) => (
             <GlobeTile
               key={tile.key}
               tile={tile}
               dragged={scroll.dragged}
-              hero={pose.hero}
+              patches={decals[i].patches}
+              tape={decals[i].tape}
               elRef={(el) => void (tileRefs.current[i] = el)}
               style={
                 {
-                  // Laid out at the print's size on the ball; the wall pose
-                  // scales it back down to its slot (see tileTransforms).
-                  "--tw": `calc(${(slot.w * pose.scale).toFixed(2)} * var(--u))`,
-                  "--th": `calc(${(slot.h * pose.scale).toFixed(2)} * var(--u))`,
+                  // Laid out at the larger of its ball and wall sizes; each
+                  // pose scales it down to the other (see tileTransforms).
+                  // In pixels, the same ones the decal's matrices are in.
+                  "--tw": `${decals[i].w.toFixed(2)}px`,
+                  "--th": `${decals[i].h.toFixed(2)}px`,
                   "--t-globe": globe,
                   "--t-grid": grid,
                   "--tile-delay": `${delay.toFixed(0)}ms`,
-                  "--bend-step": `${pose.bendStep.toFixed(3)}deg`,
-                  "--fold-step": `${pose.foldStep.toFixed(3)}deg`,
                 } as React.CSSProperties
               }
             />

@@ -1,73 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import type { CSSProperties, ReactNode, RefObject } from "react";
+import type { CSSProperties, RefObject } from "react";
 import type { GalleryTile } from "@/content/gallery";
-import { ROWS, STRIPS } from "@/lib/globe";
+import type { Patch, Tape } from "@/lib/globe";
 import { useKitchen } from "@/lib/store";
-
-/**
- * One side of a row's hinge chain, built from the centre outward.
- *
- * Nested, not siblings, and that is the whole mechanism: each strip is hinged
- * to the one inside it, so turning every hinge by the same small angle bends
- * the picture into an arc with no per-strip trigonometry anywhere. A strip's
- * transform is relative to its parent's, the parent's to ITS parent's, and the
- * curve accumulates on its own -- flat when the angle is zero, wrapped round
- * the sphere when it is a whole step.
- *
- * `k` is the strip's column in the picture, which is all its face needs to
- * show the right slice.
- */
-function chain(side: "l" | "r"): ReactNode {
-  const half = STRIPS / 2;
-  const ks =
-    side === "r"
-      ? Array.from({ length: half }, (_, i) => half + i)
-      : Array.from({ length: half }, (_, i) => half - 1 - i);
-  return ks.reduceRight<ReactNode>(
-    (inner, k, depth) => (
-      <span
-        className="globe-arc"
-        data-side={side}
-        data-root={depth === 0 || undefined}
-        data-end={depth === ks.length - 1 || undefined}
-        style={{ "--k": k } as CSSProperties}
-      >
-        {inner}
-      </span>
-    ),
-    null,
-  );
-}
-
-/**
- * One half of a print's row chain, from the middle crease outward. `kv` is
- * the row's place in the picture from the top, which its strips need to show
- * the right band of it.
- */
-function rows(side: "t" | "b"): ReactNode {
-  const half = ROWS / 2;
-  const kvs =
-    side === "b"
-      ? Array.from({ length: half }, (_, i) => half + i)
-      : Array.from({ length: half }, (_, i) => half - 1 - i);
-  return kvs.reduceRight<ReactNode>(
-    (inner, kv, depth) => (
-      <span
-        className="globe-row"
-        data-v={side}
-        data-end={depth === kvs.length - 1 || undefined}
-        style={{ "--kv": kv } as CSSProperties}
-      >
-        {chain("l")}
-        {chain("r")}
-        {inner}
-      </span>
-    ),
-    null,
-  );
-}
 
 /**
  * One picture on the globe.
@@ -81,8 +18,8 @@ function rows(side: "t" | "b"): ReactNode {
  *
  * The picture is painted by the strips as a background, not by an <img>. Each
  * strip shows one slice of the same URL, so it is still one request and one
- * decode per tile -- the pool is generated at 480px by scripts/gallery-tiles.mjs
- * precisely so that this costs 175KB in all. The link carries the alt text
+ * decode per tile -- the pool is generated at 640px by scripts/gallery-tiles.mjs
+ * precisely so that this costs 291KB in all. The link carries the alt text
  * instead, which is where a screen reader looks for a link's name anyway.
  */
 export function GlobeTile({
@@ -90,22 +27,24 @@ export function GlobeTile({
   style,
   elRef,
   dragged,
-  hero = false,
+  patches,
+  tape,
 }: {
   tile: GalleryTile;
   style: CSSProperties;
   elRef: (el: HTMLAnchorElement | null) => void;
   /** Set by the pan while the pointer is down, so a drag never navigates. */
   dragged: RefObject<boolean>;
-  /** Taped down: one of the few prints the collage is built around. */
-  hero?: boolean;
+  /** The decal, laid out for the current scene unit (see lib/globe). */
+  patches: Patch[];
+  /** A hero print's strip of tape, as its own little decal. */
+  tape?: Tape;
 }) {
   return (
     <Link
       ref={elRef}
       href={tile.href}
       className="globe-tile"
-      data-hero={hero || undefined}
       aria-label={tile.alt}
       /*
        * No viewport prefetch. Thirty-three links are all "in view" from the
@@ -121,8 +60,6 @@ export function GlobeTile({
         {
           ...style,
           "--src": `url(${JSON.stringify(tile.src)})`,
-          "--strips": STRIPS,
-          "--rows": ROWS,
         } as CSSProperties
       }
       draggable={false}
@@ -137,14 +74,45 @@ export function GlobeTile({
         useKitchen.getState().setLeavingKitchen(true);
       }}
     >
-      {/* The rows: a second hinge chain, running up and down from a crease
-          across the middle, each row carrying its own pair of strip chains.
-          The rows curve the print top to bottom and the strips side to side,
-          so it lies on the ball in both directions instead of standing proud
-          of it at its top and bottom edges -- which is where neighbouring
-          prints used to cut through it. */}
-      {rows("t")}
-      {rows("b")}
+      {patches.map((p, i) => (
+        <span
+          key={i}
+          aria-hidden
+          className="globe-patch"
+          data-t={p.edges.t || undefined}
+          data-b={p.edges.b || undefined}
+          data-l={p.edges.l || undefined}
+          data-r={p.edges.r || undefined}
+          style={
+            {
+              left: p.x,
+              top: p.y,
+              width: p.w,
+              height: p.h,
+              "--curve": p.curve,
+              "--px": `${p.x}px`,
+              "--py": `${p.y}px`,
+            } as CSSProperties
+          }
+        />
+      ))}
+      {tape && (
+        <span
+          aria-hidden
+          className="globe-tape"
+          data-tone={tape.tone}
+          style={
+            {
+              left: tape.x,
+              top: tape.y,
+              width: tape.w,
+              height: tape.h,
+              "--curve": tape.curve,
+              "--flat": tape.flat,
+            } as CSSProperties
+          }
+        />
+      )}
     </Link>
   );
 }

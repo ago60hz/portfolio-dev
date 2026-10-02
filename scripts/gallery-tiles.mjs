@@ -27,13 +27,13 @@ const SRC = 'public/assets/case-studies'
 const OUT = 'public/assets/gallery-tiles'
 
 /**
- * The widest a print is ever painted is ~240 CSS px, now the globe is a
- * collage of prints sized to overlap; 480 covers a 2x screen. At 300 they were
- * visibly soft on a retina display. The quality comes down to pay for most of
- * the extra pixels: a 2x image is shown at half size, which hides what 64
- * gives up against 74.
+ * The widest a print is ever painted is ~320 CSS px -- a hero on the collage
+ * ball -- and the wall now draws every print at ~210. 640 covers both on a 2x
+ * screen; at 300, and then 480, they were visibly soft on a retina display.
+ * The quality comes down to pay for most of the extra pixels: a 2x image is
+ * shown at half size, which hides what 60 gives up against 74.
  */
-const TILE_W = 480
+const TILE_W = 640
 
 /**
  * The curated keys, read out of content/gallery.ts rather than duplicated.
@@ -114,7 +114,7 @@ for (const key of await curatedKeys()) {
   await mkdir(dirname(out), { recursive: true })
   const { width, height } = await sharp(await trimCanvas(source))
     .resize({ width: TILE_W, withoutEnlargement: true })
-    .webp({ quality: 64 })
+    .webp({ quality: 60 })
     .toFile(out)
 
   tiles[key] = { src: `/${out.replace('public/', '')}`, width, height }

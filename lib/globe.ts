@@ -13,7 +13,7 @@
  */
 
 /**
- * Six columns of 150, spaced like an archive rather than a contact sheet.
+ * Six columns of 210, spaced like an archive rather than a contact sheet.
  *
  * The proportions come from the reference Praise gave (carlos segura's
  * archive): a picture takes about 60% of its column's pitch and about 40% of
@@ -26,15 +26,20 @@
  * half a period from the middle, and that has to happen clear of the frame or
  * the lattice visibly shuffles. Clear of it, not merely outside it: at five
  * columns the seam landed 1u beyond the corner of a tile, which is a sliver of
- * picture jumping the width of the wall. Six columns is 1470u against a 1077u
- * Window and leaves 120u of margin on each side, with the column height past
+ * picture jumping the width of the wall. Six columns is 2058u against a 1077u
+ * Window and leaves the seam far off either side, with the column height past
  * the 846u the Window has under its header. `globe.test.ts` asserts both, so
  * thinning the pool fails loudly rather than putting a seam on screen.
+ *
+ * 210, not the 150 it started at: at 150 a screen's detail -- the copy, the
+ * numbers, the states -- was too small to read, and reading it is what the
+ * wall is for. The gaps scaled with it, so the air between prints is the same
+ * proportion the reference draws.
  */
 export const COLUMNS = 6;
-export const TILE_W = 150;
-export const GAP_X = 95;
-export const GAP_Y = 150;
+export const TILE_W = 210;
+export const GAP_X = 133;
+export const GAP_Y = 210;
 
 /**
  * The sphere: 400u across, about half the Window's height, which is the
@@ -75,13 +80,13 @@ export const ROLL = 4;
  * Units between one layer of the stack and the next.
  *
  * Every print is a polyhedron laid on the ball, and the middles of its flat
- * patches dip up to ~3u inside the curve. Two overlapping prints closer
+ * patches dip up to ~4u inside the curve. Two overlapping prints closer
  * together than that cut through each other, which is what drew white wedges
  * across the pictures at 0.8. So overlapping prints never share a layer and
- * layers are 4.5u apart: enough to clear the patches, little enough that the
+ * layers are 4u apart: enough to clear the patches, little enough that the
  * ball's outline stays a circle rather than a lumpy stack.
  */
-export const LIFT = 4.5;
+export const LIFT = 4;
 
 /**
  * Which deal of the collage to use.
@@ -91,55 +96,53 @@ export const LIFT = 4.5;
  * apart -- one showed the page through the equator at the same spot in every
  * capture. `closeHoles` repairs most of that, and the deal is still chosen
  * rather than taken: of the first two hundred, this one closes up best
- * (0.17% bare) with the shallowest stack. `uncovered`'s test holds it there.
+ * (0.13% bare) with the shallowest stack. `uncovered`'s test holds it there.
  */
-export const DEAL = 149;
+export const DEAL = 173;
 
 /** The golden angle, which is what makes a Fibonacci sphere even. */
 const GOLDEN = Math.PI * (3 - Math.sqrt(5));
 const DEG = 180 / Math.PI;
 
 /**
- * How a picture bends onto the sphere.
+ * How a picture wraps the sphere: as a decal, cut into a GRID x GRID patchwork.
  *
- * A flat card tangent to a ball touches it at one point and stands proud
- * everywhere else, which is what made the globe read as cards pinned to a
- * ball rather than as a ball made of pictures. So each tile is cut into
- * vertical strips, hinged edge to edge, and every hinge turns by the same
- * small angle -- a polygon that approximates the arc the picture subtends on
- * the sphere. Horizontal only: every print is landscape and the globe turns
- * about Y, so that is the curvature the eye reads, and bending both ways would
- * mean a grid of patches per tile instead of a row.
+ * A flat sheet cannot cover a ball without stretching -- the surfaces have
+ * different curvature, and no folding fixes that. The first attempts folded
+ * the print along hinges, strips one way and rows the other, and away from
+ * the centre the two sets of folds disagreed: neighbouring patches overlapped
+ * by up to 7u and the picture showed twice across every crease.
  *
- * Four is the floor for it to read as a curve. At three the creases showed on
- * the silhouette of every tile crossing the limb; past four the extra planes
- * cost layers and buy nothing anyone can see at this size.
+ * So the print is mapped instead. Every point of it goes to the sphere by the
+ * exponential map from its centre -- straight-line distance on the paper
+ * becomes the same distance over the ball -- and each patch is stretched by
+ * its own projective transform onto the exact four points its corners land on.
+ * Neighbours share those points exactly, so the surface is closed and the
+ * picture continuous across every join; the only stretch is the decal's own,
+ * a few percent at the corners of the largest prints.
  *
- * And four rows, chained from a crease across the middle exactly as the
- * strips are from one down it. Bent one way only, a print stood ~14u off the
- * ball along its top and bottom edges once the collage made them big enough to
- * overlap, and those edges cut straight through the neighbour lying over
- * them. An EVEN count matters: it puts a crease on the tangent point, so every
- * hinge lies on the sphere and every patch dips inside it -- never out. Three
- * rows had a flat middle standing 3u proud at its edges while the strips dipped
- * 3u in, and that 6u spread is more than one layer of the stack.
+ * Five by five. Each patch is flat, so its middle dips inside the sphere by its
+ * sagitta, which LIFT has to clear: at four a side that was ~6.5u on a hero
+ * and pushed the stack past an eighth of the radius; at five it is ~4u. More
+ * patches would let the stack get shallower still, at a plane each.
  */
-export const STRIPS = 4;
-export const ROWS = 4;
+export const GRID = 5;
 
 export type Placement = { yaw: number; pitch: number };
 
-/** A print's pose on the ball. `bendStep` is per print because the angle a
- *  strip turns depends on how big the print is drawn and how far out it sits. */
+/** A print's pose on the ball. */
 export type Pose = Placement & {
   roll: number;
   scale: number;
   lift: number;
-  bendStep: number;
-  /** The turn at each crease between rows; half of it at the middle one. */
-  foldStep: number;
   /** A hero print: taped to the ball, the way the best of a pinboard is. */
   hero: boolean;
+  /**
+   * The size the print is laid out at, as a multiple of its wall size: the
+   * larger of its two sizes, so it is only ever scaled DOWN. Chrome rasterises
+   * a 3D layer at its laid-out size, and a print scaled up from it is soft.
+   */
+  layout: number;
 };
 
 /** Deterministic noise in [0, 1): the same collage on every visit, on the
@@ -148,16 +151,6 @@ const noise = (i: number, salt: number) => {
   const x = Math.sin(i * 12.9898 + salt * 78.233) * 43758.5453;
   return x - Math.floor(x);
 };
-
-/**
- * The turn between neighbouring strips that keeps every hinge ON a circle of
- * radius r: the angle a chord of that length subtends. Starting from the
- * tangent point, a chain of equal chords each turned by this lands its
- * vertices exactly on the sphere.
- */
-function chordTurn(length: number, r: number) {
-  return 2 * Math.asin(Math.min(1, length / (2 * r))) * DEG;
-}
 
 /**
  * Lay the prints over the ball as a collage.
@@ -218,17 +211,10 @@ export function collagePoses(aspects: number[], deal = DEAL): Pose[] {
   }
 
   return placed.map((p, i) => {
-    const lift = layer[i] * LIFT;
-    const r = RADIUS + lift;
     return {
       ...p,
-      lift,
-      // Solved, not approximated: with the print laid out at its drawn size
-      // (see tileTransforms) its sphere is simply r, and these are the turns
-      // that put every hinge exactly on it. The width-over-radius estimate
-      // was 3u out at the edge of a hero print, which is a crossing.
-      bendStep: chordTurn((TILE_W * p.scale) / STRIPS, r),
-      foldStep: chordTurn((heights[i] * p.scale) / ROWS, r),
+      layout: Math.max(p.scale, 1),
+      lift: layer[i] * LIFT,
     };
   });
 }
@@ -347,6 +333,171 @@ function bareSpots(
   return bare;
 }
 
+/** One patch of a print's decal, in the tile's own pixels. */
+export type Patch = {
+  /** Where the patch sits on the flat print, and how big it is. */
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  /** The projective transform that lays it onto the sphere, as CSS. */
+  curve: string;
+  /** Which of the print's outer edges this patch carries, for the keyline. */
+  edges: { t: boolean; b: boolean; l: boolean; r: boolean };
+};
+
+/** How far each patch runs under its neighbours, in px. Two patches that
+ *  merely meet antialias their shared edge and the page shows through as a
+ *  hairline; overlapped, they map the SAME picture to the SAME place, so
+ *  the overlap is invisible -- which folding could never promise. */
+const OVERLAP = 1;
+
+/**
+ * A print's patches, in pixels at the current scene unit.
+ *
+ * The tile is laid out at `layout` times its wall size and scaled by
+ * `scale / layout` onto the ball, so in its own space the sphere's radius is
+ * the ball's radius times `layout / scale`. Pixels rather than --u because a
+ * matrix takes numbers, and --u is a clamp() of a container unit that CSS
+ * cannot hand back as one.
+ */
+export function decal(pose: Pose, aspect: number, px: number): Patch[] {
+  const W = TILE_W * pose.layout * px;
+  const H = (TILE_W / Math.max(aspect, 0.2)) * pose.layout * px;
+  const rho = ((RADIUS + pose.lift) * px * pose.layout) / pose.scale;
+  const onBall = (x: number, y: number) => sphereAt(x - W / 2, y - H / 2, rho, W / 2, H / 2);
+
+  const patches: Patch[] = [];
+  for (let row = 0; row < GRID; row++) {
+    for (let col = 0; col < GRID; col++) {
+      const x0 = (col * W) / GRID - (col > 0 ? OVERLAP : 0);
+      const x1 = ((col + 1) * W) / GRID + (col < GRID - 1 ? OVERLAP : 0);
+      const y0 = (row * H) / GRID - (row > 0 ? OVERLAP : 0);
+      const y1 = ((row + 1) * H) / GRID + (row < GRID - 1 ? OVERLAP : 0);
+      const corners = [onBall(x0, y0), onBall(x1, y0), onBall(x1, y1), onBall(x0, y1)].map(
+        ([X, Y, Z]) => [X - x0, Y - y0, Z],
+      );
+      patches.push({
+        x: x0,
+        y: y0,
+        w: x1 - x0,
+        h: y1 - y0,
+        curve: rectToQuad(x1 - x0, y1 - y0, corners),
+        edges: { t: row === 0, b: row === GRID - 1, l: col === 0, r: col === GRID - 1 },
+      });
+    }
+  }
+  return patches;
+}
+
+/** A strip of tape on a hero print. */
+export type Tape = Patch & {
+  /** Its pose on the flat wall: the same lean, lying on the paper. */
+  flat: string;
+  tone: "lime" | "purple";
+};
+
+/**
+ * The strip of tape across a hero print's top edge.
+ *
+ * Its own small decal: a rectangle centred ON the edge, half on the print and
+ * half off it, leaning a few degrees -- the way tape actually gets put down --
+ * and wrapped onto the ball through the same map as the print, a hair further
+ * out so it lies over it. Lime or purple, alternating, so a print whose own
+ * colours are lime still shows its tape.
+ */
+export function tapeFor(pose: Pose, aspect: number, px: number, nth: number): Tape {
+  const W = TILE_W * pose.layout * px;
+  const H = (TILE_W / Math.max(aspect, 0.2)) * pose.layout * px;
+  const rho = ((RADIUS + pose.lift) * px * pose.layout) / pose.scale;
+  const w = W * 0.3;
+  const h = w * 0.24;
+  const x = W / 2 - w / 2;
+  const y = -h / 2;
+  const lean = ((nth % 2 ? 1 : -1) * 7 * Math.PI) / 180;
+  const [c, s] = [Math.cos(lean), Math.sin(lean)];
+  // A local corner, leaned about the tape's centre, in tile coordinates.
+  const at = (u: number, v: number) => {
+    const [du, dv] = [u - w / 2, v - h / 2];
+    return [x + w / 2 + du * c - dv * s, y + h / 2 + du * s + dv * c];
+  };
+  const above = 1.5 * px;
+  const onBall = (u: number, v: number) => {
+    const [tx, ty] = at(u, v);
+    const [X, Y, Z] = sphereAt(tx - W / 2, ty - H / 2, rho, W / 2, H / 2);
+    // Out along the sphere's normal at that point, so the tape lies ON the
+    // print rather than in it.
+    const n = [(X - W / 2) / rho, (Y - H / 2) / rho, (Z + rho) / rho];
+    return [X + n[0] * above - x, Y + n[1] * above - y, Z + n[2] * above];
+  };
+  const flatAt = (u: number, v: number) => {
+    const [tx, ty] = at(u, v);
+    return [tx - x, ty - y, above];
+  };
+  const corners = (f: (u: number, v: number) => number[]) => [f(0, 0), f(w, 0), f(w, h), f(0, h)];
+  return {
+    x,
+    y,
+    w,
+    h,
+    curve: rectToQuad(w, h, corners(onBall)),
+    flat: rectToQuad(w, h, corners(flatAt)),
+    edges: { t: true, b: true, l: false, r: false },
+    tone: nth % 2 ? "purple" : "lime",
+  };
+}
+
+/**
+ * The exponential map: a point `(dx, dy)` from the print's centre goes the
+ * same distance over the ball, in the same direction. Returned in the tile's
+ * coordinates -- `(cx, cy)` is the centre -- with z out of the screen.
+ */
+export function sphereAt(dx: number, dy: number, rho: number, cx = 0, cy = 0) {
+  const d = Math.hypot(dx, dy);
+  if (d < 1e-9) return [cx, cy, 0];
+  const k = (Math.sin(d / rho) * rho) / d;
+  return [cx + dx * k, cy + dy * k, rho * (Math.cos(d / rho) - 1)];
+}
+
+/**
+ * The CSS `matrix3d` that takes a w x h rectangle onto four points.
+ *
+ * x and y are an exact square-to-quad homography (Heckbert's closed form), so
+ * the corners land on the points to the pixel and the edges between them are
+ * straight -- which is what lets two patches share an edge with no seam. z is
+ * fitted to the four points by least squares: they lie on a sphere, so they
+ * are not quite coplanar, and the fit misses by a fraction of a pixel in depth
+ * only, where nobody can see it.
+ */
+export function rectToQuad(w: number, h: number, q: number[][]) {
+  const [[x0, y0, z0], [x1, y1, z1], [x2, y2, z2], [x3, y3, z3]] = q;
+  const dx1 = x1 - x2;
+  const dx2 = x3 - x2;
+  const dx3 = x0 - x1 + x2 - x3;
+  const dy1 = y1 - y2;
+  const dy2 = y3 - y2;
+  const dy3 = y0 - y1 + y2 - y3;
+  const den = dx1 * dy2 - dy1 * dx2;
+  const g = (dx3 * dy2 - dy3 * dx2) / den;
+  const hh = (dx1 * dy3 - dy1 * dx3) / den;
+  const a = x1 - x0 + g * x1;
+  const b = x3 - x0 + hh * x3;
+  const d = y1 - y0 + g * y1;
+  const e = y3 - y0 + hh * y3;
+  // z * w at each corner, then the least-squares plane over the unit square.
+  const zw = [z0, z1 * (1 + g), z2 * (1 + g + hh), z3 * (1 + hh)];
+  const zi = (zw[1] + zw[2] - zw[0] - zw[3]) / 2;
+  const zj = (zw[3] + zw[2] - zw[0] - zw[1]) / 2;
+  const zk = (3 * zw[0] + zw[1] - zw[2] + zw[3]) / 4;
+  const m = [
+    a / w, d / w, zi / w, g / w,
+    b / h, e / h, zj / h, hh / h,
+    0, 0, 1, 0,
+    x0, y0, zk, 1,
+  ];
+  return `matrix3d(${m.map((v) => +v.toFixed(6)).join(",")})`;
+}
+
 /**
  * `n` points spread evenly over a sphere.
  *
@@ -444,10 +595,11 @@ const u = (n: number) => `calc(${n.toFixed(2)} * var(--u))`;
  * until a tile has actually left the frame, so nothing outside the drag handler
  * has to know they exist.
  *
- * The tile is laid out at its size ON THE BALL and scaled DOWN for the wall,
- * not the other way round. Chrome rasterises a 3D layer at its laid-out size
- * and keeps that raster while the transform animates, so a print laid out at
- * wall size and scaled up 1.4x onto the ball was drawn soft every frame.
+ * The tile is laid out at the LARGER of its two sizes and scaled down to the
+ * other. Chrome rasterises a 3D layer at its laid-out size and keeps that
+ * raster while the transform animates, so a print laid out at wall size and
+ * scaled up 1.4x onto the ball was drawn soft every frame -- and the same goes
+ * the other way for a small print on a wall that is now larger than it.
  */
 export function tileTransforms(pose: Pose, slot: Slot) {
   return {
@@ -455,12 +607,12 @@ export function tileTransforms(pose: Pose, slot: Slot) {
       `translate3d(0px, 0px, 0px) ` +
       `rotateY(${pose.yaw.toFixed(2)}deg) rotateX(${(-pose.pitch).toFixed(2)}deg) ` +
       `translateZ(${u(RADIUS + pose.lift)}) rotateZ(${pose.roll.toFixed(2)}deg) ` +
-      `scale(1)`,
+      `scale(${(pose.scale / pose.layout).toFixed(4)})`,
     grid:
       `translate3d(calc((${slot.x.toFixed(2)} + var(--wx, 0)) * var(--u)), ` +
       `calc((${slot.y.toFixed(2)} + var(--wy, 0)) * var(--u)), 0px) ` +
       `rotateY(0deg) rotateX(0deg) translateZ(0px) rotateZ(0deg) ` +
-      `scale(${(1 / pose.scale).toFixed(4)})`,
+      `scale(${(1 / pose.layout).toFixed(4)})`,
   };
 }
 

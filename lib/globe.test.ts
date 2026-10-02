@@ -4,14 +4,16 @@ import {
   COLUMNS,
   COVERAGE,
   GAP_X,
+  GRID,
   LIFT,
-  ROWS,
   GAP_Y,
   RADIUS,
   ROLL,
-  STRIPS,
   TILE_W,
   collagePoses,
+  decal,
+  rectToQuad,
+  sphereAt,
   uncovered,
   layoutSpread,
   spherePlacements,
@@ -176,35 +178,66 @@ describe("collagePoses", () => {
     expect(collagePoses(pool)).toEqual(poses);
   });
 
-  it("lands every hinge of every print on its own layer of the sphere", () => {
-    // Walk both chains out from the print's centre the way the CSS does: the
-    // middle crease turns half a step, every crease after it a whole one. A
-    // print is laid out at its drawn size, so its sphere is just R + lift.
-    const rad = (d: number) => (d * Math.PI) / 180;
-    const walk = (length: number, count: number, step: number, radius: number) => {
-      let x = 0;
-      let z = 0;
-      for (let j = 0; j < count / 2; j++) {
-        const turn = rad(step / 2 + j * step);
-        x += (length / count) * Math.cos(turn);
-        z -= (length / count) * Math.sin(turn);
-        expect(Math.abs(Math.hypot(x, z + radius) - radius)).toBeLessThan(0.01);
-      }
-    };
-    poses.forEach((p, i) => {
-      const radius = RADIUS + p.lift;
-      walk(TILE_W * p.scale, STRIPS, p.bendStep, radius);
-      walk((TILE_W / pool[i]) * p.scale, ROWS, p.foldStep, radius);
-    });
-  });
-
   it("leaves no hole in the ball for the page to show through", () => {
     expect(uncovered(poses, pool)).toBeLessThan(0.005);
   });
+});
 
-  it("cuts into even numbers both ways, so the creases cross at the centre", () => {
-    expect(STRIPS % 2).toBe(0);
-    expect(ROWS % 2).toBe(0);
+describe("decal", () => {
+  const pool = GALLERY_TILES.map((t) => t.width / t.height);
+  const poses = collagePoses(pool);
+  const px = 1.07;
+
+  // Apply a CSS matrix3d to a point, the way the browser does.
+  const apply = (css: string, x: number, y: number) => {
+    const m = css.slice(9, -1).split(",").map(Number);
+    const w = m[3] * x + m[7] * y + m[15];
+    return [0, 1, 2].map((k) => (m[k] * x + m[4 + k] * y + m[12 + k]) / w);
+  };
+
+  it("maps a rectangle exactly onto its four corners", () => {
+    const q = [[3, 1, -2], [104, 6, -1], [98, 77, -3], [-2, 70, -4]];
+    const css = rectToQuad(100, 75, q);
+    const at = [apply(css, 0, 0), apply(css, 100, 0), apply(css, 100, 75), apply(css, 0, 75)];
+    at.forEach((p, k) => {
+      expect(p[0]).toBeCloseTo(q[k][0], 2);
+      expect(p[1]).toBeCloseTo(q[k][1], 2);
+    });
+  });
+
+  it("closes every join: neighbouring patches land on the same points", () => {
+    // The whole point of the decal. Folding left patches 7u apart at the
+    // corners; mapped, a shared corner is the same point from both sides.
+    poses.forEach((pose, i) => {
+      const patches = decal(pose, pool[i], px);
+      const corner = (p: (typeof patches)[number], u: number, v: number) => {
+        const [x, y] = apply(p.curve, u, v);
+        return [x + p.x, y + p.y];
+      };
+      for (let row = 0; row < GRID; row++) {
+        for (let col = 0; col + 1 < GRID; col++) {
+          const a = patches[row * GRID + col];
+          const b = patches[row * GRID + col + 1];
+          // The seam's x on the flat print, inside both patches' overlap.
+          const seam = b.x + 1;
+          const fromA = corner(a, seam - a.x, a.h / 2);
+          const fromB = corner(b, seam - b.x, a.h / 2 + a.y - b.y);
+          expect(Math.hypot(fromA[0] - fromB[0], fromA[1] - fromB[1])).toBeLessThan(0.75);
+        }
+      }
+    });
+  });
+
+  it("lays every corner on the print's own layer of the sphere", () => {
+    poses.forEach((pose, i) => {
+      const rho = ((RADIUS + pose.lift) * px * pose.layout) / pose.scale;
+      const W = TILE_W * pose.layout * px;
+      const H = (TILE_W / pool[i]) * pose.layout * px;
+      for (const [dx, dy] of [[-W / 2, -H / 2], [W / 2, H / 2], [W / 3, -H / 5]]) {
+        const [x, y, z] = sphereAt(dx, dy, rho);
+        expect(Math.hypot(x, y, z + rho)).toBeCloseTo(rho, 6);
+      }
+    });
   });
 });
 
