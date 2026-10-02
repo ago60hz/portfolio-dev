@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { GALLERY_TILES } from "@/content/gallery";
 import {
   COLUMNS,
   COVERAGE,
@@ -11,6 +12,7 @@ import {
   STRIPS,
   TILE_W,
   collagePoses,
+  uncovered,
   layoutSpread,
   spherePlacements,
   tileTransforms,
@@ -117,8 +119,8 @@ describe("tileTransforms", () => {
 });
 
 describe("collagePoses", () => {
-  // The real pool's shapes: one 2.38 banner, the rest 16:9 to 4:3.
-  const pool = [2.38, ...Array(8).fill(1.78), 1.42, 1.58, ...Array(11).fill(1.33)];
+  // The real pool, so the chosen deal is tested on the shapes it was chosen for.
+  const pool = GALLERY_TILES.map((t) => t.width / t.height);
   const poses = collagePoses(pool);
 
   it("covers the ball with overlap to spare, so no far side shows through", () => {
@@ -126,7 +128,8 @@ describe("collagePoses", () => {
       (sum, a, i) => sum + TILE_W * (TILE_W / a) * poses[i].scale ** 2,
       0,
     );
-    expect(drawn / (4 * Math.PI * RADIUS ** 2)).toBeCloseTo(COVERAGE, 6);
+    // At least COVERAGE: closing holes only ever grows a print.
+    expect(drawn / (4 * Math.PI * RADIUS ** 2)).toBeGreaterThanOrEqual(COVERAGE - 1e-9);
   });
 
   it("leans every print by hand, but never far enough to lose the ball", () => {
@@ -161,7 +164,7 @@ describe("collagePoses", () => {
 
   it("keeps the stack shallow enough that the outline stays round", () => {
     const deepest = Math.max(...poses.map((p) => p.lift));
-    expect(deepest / RADIUS).toBeLessThanOrEqual(0.1);
+    expect(deepest / RADIUS).toBeLessThanOrEqual(0.12);
   });
 
   it("has a hierarchy of sizes, not one size", () => {
@@ -174,39 +177,34 @@ describe("collagePoses", () => {
   });
 
   it("lands every hinge of every print on its own layer of the sphere", () => {
-    // Walk each chain out from the print's centre the way the CSS does. Across:
-    // the first hinge turns half a step, every hinge after it a whole one.
-    // Down: the middle row is flat and the rows either side turn a whole step.
-    // A print is laid out at its drawn size, so its sphere is just R + lift.
+    // Walk both chains out from the print's centre the way the CSS does: the
+    // middle crease turns half a step, every crease after it a whole one. A
+    // print is laid out at its drawn size, so its sphere is just R + lift.
     const rad = (d: number) => (d * Math.PI) / 180;
-    const off = (x: number, z: number, radius: number) =>
-      Math.abs(Math.hypot(x, z + radius) - radius);
-    poses.forEach((p, i) => {
-      const radius = RADIUS + p.lift;
-      const strip = (TILE_W * p.scale) / STRIPS;
+    const walk = (length: number, count: number, step: number, radius: number) => {
       let x = 0;
       let z = 0;
-      for (let j = 0; j < STRIPS / 2; j++) {
-        const turn = rad(p.bendStep / 2 + j * p.bendStep);
-        x += strip * Math.cos(turn);
-        z -= strip * Math.sin(turn);
-        expect(off(x, z, radius)).toBeLessThan(0.01);
+      for (let j = 0; j < count / 2; j++) {
+        const turn = rad(step / 2 + j * step);
+        x += (length / count) * Math.cos(turn);
+        z -= (length / count) * Math.sin(turn);
+        expect(Math.abs(Math.hypot(x, z + radius) - radius)).toBeLessThan(0.01);
       }
-      const row = ((TILE_W / pool[i]) * p.scale) / ROWS;
-      // The middle row is a flat tangent: its edge sits just off the ball,
-      // by less than one LIFT, so no neighbour can reach through it...
-      let y = row / 2;
-      z = 0;
-      expect(off(y, z, radius)).toBeLessThan(LIFT);
-      // ...and the outer row's far edge lands back on it exactly.
-      y += row * Math.cos(rad(p.foldStep));
-      z -= row * Math.sin(rad(p.foldStep));
-      expect(off(y, z, radius)).toBeLessThan(0.01);
+    };
+    poses.forEach((p, i) => {
+      const radius = RADIUS + p.lift;
+      walk(TILE_W * p.scale, STRIPS, p.bendStep, radius);
+      walk((TILE_W / pool[i]) * p.scale, ROWS, p.foldStep, radius);
     });
   });
 
-  it("cuts into an even number of strips, so the crease falls on the centre", () => {
+  it("leaves no hole in the ball for the page to show through", () => {
+    expect(uncovered(poses, pool)).toBeLessThan(0.005);
+  });
+
+  it("cuts into even numbers both ways, so the creases cross at the centre", () => {
     expect(STRIPS % 2).toBe(0);
+    expect(ROWS % 2).toBe(0);
   });
 });
 

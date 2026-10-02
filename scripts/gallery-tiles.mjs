@@ -72,6 +72,29 @@ const candidates = (key) => [
 // shipping in the repository for the next person to wonder about.
 await rm(OUT, { recursive: true, force: true })
 
+/**
+ * Crop the presentation canvas off a board before it becomes a print.
+ *
+ * Most case-study boards sit on a flat grey or white canvas, which reads fine
+ * inside an article and reads as a grey slab on a collage of prints. So the
+ * uniform border is trimmed -- but only when the trim leaves most of the
+ * board: a logotype alone on a canvas trims down to a speck, and a speck is
+ * worse than the canvas it came on. Under KEEP of either side, the board is
+ * used whole.
+ */
+const KEEP = 0.55
+
+async function trimCanvas(source) {
+  const whole = sharp(source, { limitInputPixels: false })
+  const { width: w0, height: h0 } = await whole.metadata()
+  const { data, info } = await whole
+    .clone()
+    .trim({ threshold: 18 })
+    .toBuffer({ resolveWithObject: true })
+  const kept = Math.min(info.width / w0, info.height / h0)
+  return kept >= KEEP ? data : await whole.toBuffer()
+}
+
 const tiles = {}
 
 for (const key of await curatedKeys()) {
@@ -89,7 +112,7 @@ for (const key of await curatedKeys()) {
 
   const out = join(OUT, `${key}.webp`)
   await mkdir(dirname(out), { recursive: true })
-  const { width, height } = await sharp(source, { limitInputPixels: false })
+  const { width, height } = await sharp(await trimCanvas(source))
     .resize({ width: TILE_W, withoutEnlargement: true })
     .webp({ quality: 64 })
     .toFile(out)

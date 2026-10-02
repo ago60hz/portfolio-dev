@@ -48,8 +48,9 @@ export const RADIUS = 200;
  * The globe is a COLLAGE, not a tiling. At 0.85 scale the pictures covered
  * barely half the ball and the rest was the white backs of the far side
  * showing through the gaps -- cards on a wireframe. Sized so their areas add
- * up to a third more than the surface, neighbours tuck under each other the
- * way prints do on a pinboard, and the far side is never seen at all.
+ * up to over a third more than the surface, neighbours tuck under each other the
+ * way prints do on a pinboard, and the far side is never seen at all. This
+ * is the starting size; `closeHoles` then grows the prints that border a gap.
  */
 export const COVERAGE = 1.3;
 
@@ -59,7 +60,7 @@ export const COVERAGE = 1.3;
  * twenty-two prints of the same weight -- a patchwork, with nothing for the
  * eye to land on first. The ratios are relative; COVERAGE sets the absolute.
  */
-export const SIZE_TIERS = { hero: 1.32, body: 1, small: 0.76 } as const;
+export const SIZE_TIERS = { hero: 1.25, body: 1, small: 0.76 } as const;
 
 /** Which tier the print at position i takes: every seventh a hero, so the
  *  three of them land far apart on the spiral, and a small one between. */
@@ -74,13 +75,25 @@ export const ROLL = 4;
  * Units between one layer of the stack and the next.
  *
  * Every print is a polyhedron laid on the ball, and the middles of its flat
- * patches sit up to ~3u off the curve. Two overlapping prints closer
+ * patches dip up to ~3u inside the curve. Two overlapping prints closer
  * together than that cut through each other, which is what drew white wedges
  * across the pictures at 0.8. So overlapping prints never share a layer and
- * layers are 4u apart: enough to clear the patches, little enough that the
+ * layers are 4.5u apart: enough to clear the patches, little enough that the
  * ball's outline stays a circle rather than a lumpy stack.
  */
-export const LIFT = 4;
+export const LIFT = 4.5;
+
+/**
+ * Which deal of the collage to use.
+ *
+ * The jitter that takes the prints off the spiral's lattice is deterministic
+ * noise, and some deals of it leave a hole where three prints happen to pull
+ * apart -- one showed the page through the equator at the same spot in every
+ * capture. `closeHoles` repairs most of that, and the deal is still chosen
+ * rather than taken: of the first two hundred, this one closes up best
+ * (0.17% bare) with the shallowest stack. `uncovered`'s test holds it there.
+ */
+export const DEAL = 149;
 
 /** The golden angle, which is what makes a Fibonacci sphere even. */
 const GOLDEN = Math.PI * (3 - Math.sqrt(5));
@@ -102,14 +115,17 @@ const DEG = 180 / Math.PI;
  * the silhouette of every tile crossing the limb; past four the extra planes
  * cost layers and buy nothing anyone can see at this size.
  *
- * And three rows. Bent one way only, a print stood ~14u off the ball along
- * its top and bottom edges once the collage made them big enough to overlap,
- * and those edges cut straight through the neighbour lying over them. Two
- * rows still left ~3u; three -- a flat middle with a row hinged above and
- * below -- brings every patch within ~1.5u, which LIFT clears.
+ * And four rows, chained from a crease across the middle exactly as the
+ * strips are from one down it. Bent one way only, a print stood ~14u off the
+ * ball along its top and bottom edges once the collage made them big enough to
+ * overlap, and those edges cut straight through the neighbour lying over
+ * them. An EVEN count matters: it puts a crease on the tangent point, so every
+ * hinge lies on the sphere and every patch dips inside it -- never out. Three
+ * rows had a flat middle standing 3u proud at its edges while the strips dipped
+ * 3u in, and that 6u spread is more than one layer of the stack.
  */
 export const STRIPS = 4;
-export const ROWS = 3;
+export const ROWS = 4;
 
 export type Placement = { yaw: number; pitch: number };
 
@@ -120,8 +136,10 @@ export type Pose = Placement & {
   scale: number;
   lift: number;
   bendStep: number;
-  /** The turn at each crease between rows. */
+  /** The turn at each crease between rows; half of it at the middle one. */
   foldStep: number;
+  /** A hero print: taped to the ball, the way the best of a pinboard is. */
+  hero: boolean;
 };
 
 /** Deterministic noise in [0, 1): the same collage on every visit, on the
@@ -142,31 +160,6 @@ function chordTurn(length: number, r: number) {
 }
 
 /**
- * The turn for the rows above and below a print's flat middle.
- *
- * The middle row is a tangent, so its edges sit just OFF the sphere; the
- * outer row hinged there has to turn a little further than a chord step to
- * bring its far edge back down onto it. Solved by bisection -- the function
- * is monotonic over the range a print can need.
- */
-function rowTurn(row: number, r: number) {
-  const y0 = row / 2;
-  const miss = (turn: number) => {
-    const y = y0 + row * Math.cos(turn);
-    const z = -row * Math.sin(turn);
-    return Math.hypot(y, z + r) - r;
-  };
-  let lo = 0;
-  let hi = Math.PI / 2;
-  for (let k = 0; k < 40; k++) {
-    const mid = (lo + hi) / 2;
-    if (miss(mid) > 0) lo = mid;
-    else hi = mid;
-  }
-  return ((lo + hi) / 2) * DEG;
-}
-
-/**
  * Lay the prints over the ball as a collage.
  *
  * The Fibonacci spiral still decides WHERE each print goes -- it is what keeps
@@ -181,19 +174,23 @@ function rowTurn(row: number, r: number) {
  * overlaps alternate who is on top, instead of the spiral laying every print
  * over the one before it like roof slates.
  */
-export function collagePoses(aspects: number[]): Pose[] {
+export function collagePoses(aspects: number[], deal = DEAL): Pose[] {
   const n = aspects.length;
   const heights = aspects.map((a) => TILE_W / Math.max(a, 0.2));
   const size = aspects.map((_, i) => tierOf(i));
   const drawn = heights.reduce((sum, h, i) => sum + TILE_W * h * size[i] ** 2, 0);
   const base = Math.sqrt((COVERAGE * 4 * Math.PI * RADIUS ** 2) / Math.max(drawn, 1));
 
+  const salt = (k: number) => k + deal * 10;
   const placed = spherePlacements(n).map((place, i) => ({
-    yaw: place.yaw + (noise(i, 2) - 0.5) * 12,
-    pitch: Math.max(-84, Math.min(84, place.pitch + (noise(i, 3) - 0.5) * 8)),
-    roll: (noise(i, 4) - 0.5) * 2 * ROLL,
+    hero: size[i] === SIZE_TIERS.hero,
+    yaw: place.yaw + (noise(i, salt(2)) - 0.5) * 12,
+    pitch: Math.max(-84, Math.min(84, place.pitch + (noise(i, salt(3)) - 0.5) * 8)),
+    roll: (noise(i, salt(4)) - 0.5) * 2 * ROLL,
     scale: base * size[i],
   }));
+
+  closeHoles(placed, heights);
 
   const rad = Math.PI / 180;
   const dir = placed.map(({ yaw, pitch }) => [
@@ -231,9 +228,123 @@ export function collagePoses(aspects: number[]): Pose[] {
       // that put every hinge exactly on it. The width-over-radius estimate
       // was 3u out at the edge of a hero print, which is a crossing.
       bendStep: chordTurn((TILE_W * p.scale) / STRIPS, r),
-      foldStep: rowTurn((heights[i] * p.scale) / ROWS, r),
+      foldStep: chordTurn((heights[i] * p.scale) / ROWS, r),
     };
   });
+}
+
+/** Settle for this little of the ball showing through: one sample in 300. */
+const HOLE_TOLERANCE = 0.003;
+
+/**
+ * Close the holes the spiral leaves.
+ *
+ * A Fibonacci spiral spaces CENTRES evenly, but these are rectangles, and
+ * rectangles on a ball leave gaps where three corners pull apart -- 6 to 8%
+ * of the surface whatever the jitter. So the collage settles itself, the way
+ * a hand would: find the bare spots, and for each one nudge the nearest print
+ * a little toward it and let it grow a little. Repeated until the ball is
+ * closed. Deterministic, and it runs once.
+ */
+function closeHoles(
+  placed: { yaw: number; pitch: number; roll: number; scale: number }[],
+  heights: number[],
+) {
+  const rad = Math.PI / 180;
+  const aspects = heights.map((h) => TILE_W / h);
+  const toVec = (yaw: number, pitch: number) => [
+    Math.cos(pitch * rad) * Math.sin(yaw * rad),
+    Math.sin(pitch * rad),
+    Math.cos(pitch * rad) * Math.cos(yaw * rad),
+  ];
+  // Growth is capped, so filling a hole never turns a body print into a
+  // poster: past this the bend gets steep, the picture soft, and the stack
+  // deep. The rest of the work is done by moving.
+  const cap = placed.map((p) => p.scale * 1.2);
+  for (let round = 0; round < 80; round++) {
+    const holes = bareSpots(placed as Pose[], aspects, 1500);
+    if (holes.length / 1500 < HOLE_TOLERANCE) return;
+    const centres = placed.map((p) => toVec(p.yaw, p.pitch));
+    const pull = placed.map(() => ({ v: [0, 0, 0], n: 0 }));
+    for (const pt of holes) {
+      let best = 0;
+      let bestDot = -2;
+      centres.forEach((c, i) => {
+        const d = c[0] * pt[0] + c[1] * pt[1] + c[2] * pt[2];
+        if (d > bestDot) [best, bestDot] = [i, d];
+      });
+      pull[best].n++;
+      pull[best].v = pull[best].v.map((v, k) => v + pt[k]);
+    }
+    pull.forEach(({ v, n }, i) => {
+      if (!n) return;
+      const c = centres[i];
+      const m = v.map((x) => x / n);
+      const moved = c.map((x, k) => x + (m[k] - x) * 0.3);
+      const len = Math.hypot(moved[0], moved[1], moved[2]);
+      const [x, y, z] = moved.map((v2) => v2 / len);
+      placed[i].pitch = Math.max(-84, Math.min(84, Math.asin(y) / rad));
+      placed[i].yaw = Math.atan2(x, z) / rad;
+      placed[i].scale = Math.min(cap[i], placed[i].scale * (1 + 0.012 * Math.min(n, 6)));
+    });
+  }
+}
+
+/**
+ * The share of the ball no print covers, measured rather than guessed.
+ *
+ * Samples the sphere evenly and asks of each point whether it falls inside
+ * any print: projected into that print's own frame -- its yaw, pitch and roll,
+ * the same rotations the CSS applies -- and compared, as arc lengths, against
+ * its drawn width and height. Ignores lift; the layers are a few units apart
+ * on a 200u ball and change nothing about where the holes are.
+ */
+export function uncovered(poses: Pose[], aspects: number[], samples = 3000) {
+  return bareSpots(poses, aspects, samples).length / samples;
+}
+
+/** The sample points no print covers, as unit vectors. */
+function bareSpots(
+  poses: Pick<Pose, "yaw" | "pitch" | "roll" | "scale">[],
+  aspects: number[],
+  samples: number,
+) {
+  const rad = Math.PI / 180;
+  const frames = poses.map((p, i) => {
+    const [y, x, r] = [p.yaw * rad, p.pitch * rad, p.roll * rad];
+    // CSS axes, y down: rotateY(yaw) rotateX(-pitch), then rotateZ(roll).
+    const X = [Math.cos(y), 0, -Math.sin(y)];
+    const Y = [-Math.sin(x) * Math.sin(y), Math.cos(x), -Math.sin(x) * Math.cos(y)];
+    const C = [Math.cos(x) * Math.sin(y), Math.sin(x), Math.cos(x) * Math.cos(y)];
+    const ex = X.map((v, k) => v * Math.cos(r) + Y[k] * Math.sin(r));
+    const ey = X.map((v, k) => -v * Math.sin(r) + Y[k] * Math.cos(r));
+    return {
+      ex,
+      ey,
+      c: C,
+      w: (TILE_W * p.scale) / 2 / RADIUS,
+      h: ((TILE_W / Math.max(aspects[i], 0.2)) * p.scale) / 2 / RADIUS,
+    };
+  });
+  const dot = (a: number[], b: number[]) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+  const bare: number[][] = [];
+  for (const { yaw, pitch } of spherePlacements(samples)) {
+    const pt = [
+      Math.cos(pitch * rad) * Math.sin(yaw * rad),
+      Math.sin(pitch * rad),
+      Math.cos(pitch * rad) * Math.cos(yaw * rad),
+    ];
+    const hit = frames.some(({ ex, ey, c, w, h }) => {
+      const depth = dot(pt, c);
+      return (
+        depth > 0 &&
+        Math.abs(Math.atan2(dot(pt, ex), depth)) <= w &&
+        Math.abs(Math.atan2(dot(pt, ey), depth)) <= h
+      );
+    });
+    if (!hit) bare.push(pt);
+  }
+  return bare;
 }
 
 /**

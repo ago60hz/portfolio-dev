@@ -1294,38 +1294,53 @@ body {
       --bend var(--duration-state) var(--ease-slow-down) var(--tile-delay, 0ms);
   }
 
-  /* A print's three rows: a flat middle, and a row hinged off its top and
-     bottom edges, each turned back away from the viewer by the arc one row
-     spans on the ball. Nested in the middle row, so the hinges are its edges
-     and the turns need no positions of their own. */
+  /* A print's rows: the strips' chain turned on its side. Each row is hinged
+     to the one nearer the middle and turns back away from the viewer -- by
+     half a step at the middle crease, which the two middle rows share, and a
+     whole step at every crease after. */
   .globe-row {
     position: absolute;
     left: 0;
     width: 100%;
     height: 100%;
     transform-style: preserve-3d;
+    --vhinge: 1;
+    transform: rotateX(calc(var(--bend) * var(--vhinge) * var(--vdir) * var(--fold-step)));
+    --face-top: calc(var(--kv) * var(--th) / var(--rows) - 2px);
   }
 
-  .globe-row[data-row="m"] {
-    top: calc(100% / 3);
-    height: calc(100% / 3);
-    --face-top: calc(var(--th) / 3 - 2px);
-  }
-
-  .globe-row[data-row="t"] {
+  .globe-row[data-v="t"] {
     top: -100%;
     transform-origin: 50% 100%;
-    transform: rotateX(calc(var(--bend) * var(--fold-step)));
-    --face-top: 0px;
-    --edge-t: var(--print-edge);
+    --vdir: 1;
   }
 
-  .globe-row[data-row="b"] {
+  .globe-row[data-v="b"] {
     top: 100%;
     transform-origin: 50% 0;
-    transform: rotateX(calc(var(--bend) * var(--fold-step) * -1));
-    --face-top: calc(var(--th) * 2 / 3 - 2px);
-    --edge-b: var(--print-edge);
+    --vdir: -1;
+  }
+
+  .globe-tile > .globe-row {
+    --vhinge: 0.5;
+    height: calc(100% / var(--rows));
+  }
+
+  .globe-tile > .globe-row[data-v="t"] {
+    top: calc(50% - 100% / var(--rows));
+  }
+
+  .globe-tile > .globe-row[data-v="b"] {
+    top: 50%;
+  }
+
+  .globe-row[data-end][data-v="t"] {
+    --face-top: 0px;
+    --line-t: var(--print-line);
+  }
+
+  .globe-row[data-end][data-v="b"] {
+    --line-b: var(--print-line);
   }
 
   /* A strip of a row, hinged to the strip inside it. It paints nothing: its
@@ -1371,11 +1386,11 @@ body {
   }
 
   .globe-arc[data-end][data-side="l"] {
-    --edge-l: var(--print-edge);
+    --line-l: var(--print-line);
   }
 
   .globe-arc[data-end][data-side="r"] {
-    --edge-r: var(--print-edge);
+    --line-r: var(--print-line);
   }
 
   /* The print: one patch of the picture on its paper.
@@ -1401,9 +1416,28 @@ body {
   /* The keyline is the site's own ink stroke, so the collage is drawn in the
      same hand as the cans, the tags and the Window -- and the paper is pure
      white rather than the page's paper, so a print lifts off the ground by
-     colour alone, with no shadow under it. */
+     colour alone, with no shadow under it.
+
+     Painted INSIDE each patch as a 1px background layer, not as a shadow
+     outside it: shadows overhung the hinges and every fold drew a little ink
+     tick where two patches' lines crossed. Inside the box, neighbouring
+     patches draw their stretch of the line in their own plane and it reads as
+     one folded stroke. */
   .globe-tile {
-    --print-edge: var(--color-kitchen-ink);
+    --print-line: linear-gradient(var(--color-kitchen-ink), var(--color-kitchen-ink));
+    --tape-w: calc(var(--tw) * 0.26);
+    --tape-h: calc(16 * var(--u));
+  }
+
+  /* The heroes are taped on: a strip of lime with an ink edge across the top,
+     the Contact button's pairing, so the gallery carries the brand's colour
+     on the prints it is built around instead of on chrome around them. Only
+     the top row's patches paint it -- the ones under where it lies -- and on
+     the ball it folds across the middle crease with the paper it holds. */
+  .globe-tile[data-hero]::before,
+  .globe-tile[data-hero] .globe-row[data-end][data-v="t"] {
+    --tape-lime: linear-gradient(var(--color-kitchen-lime), var(--color-kitchen-lime));
+    --tape-ink: var(--print-line);
   }
 
   .globe-arc::before {
@@ -1413,28 +1447,72 @@ body {
     --face-left: calc(var(--k) * var(--tw) / var(--strips) - 2px);
     inset: -2px;
     background-color: #fff;
-    background-image: var(--src);
+    background-image:
+      var(--tape-lime, none), var(--tape-ink, none),
+      var(--line-t, none), var(--line-b, none), var(--line-l, none), var(--line-r, none),
+      var(--src);
     background-repeat: no-repeat;
-    background-size: calc(var(--tw) - 2 * var(--m)) calc(var(--th) - 2 * var(--m));
+    background-size:
+      calc(var(--tape-w) - 2px) calc(var(--tape-h) - 2px),
+      var(--tape-w) var(--tape-h),
+      100% 1px,
+      100% 1px,
+      1px 100%,
+      1px 100%,
+      calc(var(--tw) - 2 * var(--m)) calc(var(--th) - 2 * var(--m));
     background-position:
+      calc(var(--tw) / 2 - var(--tape-w) / 2 + 1px - var(--face-left)) calc(1px - var(--face-top)),
+      calc(var(--tw) / 2 - var(--tape-w) / 2 - var(--face-left)) calc(0px - var(--face-top)),
+      0 0,
+      0 100%,
+      0 0,
+      100% 0,
       calc(var(--m) - var(--face-left)) calc(var(--m) - var(--face-top));
-    /* The print's outer edge, and only its outer edge: each patch draws the
-       sides it owns, so no line ever runs down a crease. */
-    box-shadow:
-      0 -1px 0 var(--edge-t, transparent),
-      0 1px 0 var(--edge-b, transparent),
-      -1px 0 0 var(--edge-l, transparent),
-      1px 0 0 var(--edge-r, transparent);
     backface-visibility: hidden;
+    /* Only while the print is bending; flat, the whole print takes over. */
+    opacity: clamp(0, (var(--bend) - 0.01) * 1000, 1);
+    transition: filter var(--duration-state) var(--ease-smooth);
+  }
+
+  /* The print flat, in one piece, for the wall.
+
+     The patchwork exists to bend. Flat, its joins are all cost: on the wall,
+     where a print is drawn at a fraction of its laid-out size, every join
+     between patches resolved to a faint grid across the picture. So the
+     moment the bend lets go the patches hand over to this single face, which
+     is the same print in the same place -- the swap happens at a bend of 1%,
+     where the two are indistinguishable. */
+  .globe-tile::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    --m: calc(2.5 * var(--u));
+    border: 1px solid var(--color-kitchen-ink);
+    background-color: #fff;
+    background-image: var(--tape-lime, none), var(--tape-ink, none), var(--src);
+    background-repeat: no-repeat;
+    background-origin: border-box;
+    background-size:
+      calc(var(--tape-w) - 2px) calc(var(--tape-h) - 2px),
+      var(--tape-w) var(--tape-h),
+      calc(var(--tw) - 2 * var(--m)) calc(var(--th) - 2 * var(--m));
+    background-position:
+      50% 1px,
+      50% 0,
+      var(--m) var(--m);
+    backface-visibility: hidden;
+    opacity: clamp(0, (0.01 - var(--bend)) * 1000, 1);
     transition: filter var(--duration-state) var(--ease-smooth);
   }
 
   /* The outer edges sit exactly on the print's border, not past it. */
-  .globe-row[data-row="t"] .globe-arc::before {
+  .globe-row[data-end][data-v="t"] > .globe-arc::before,
+  .globe-row[data-end][data-v="t"] > .globe-arc .globe-arc::before {
     top: 0;
   }
 
-  .globe-row[data-row="b"] .globe-arc::before {
+  .globe-row[data-end][data-v="b"] > .globe-arc::before,
+  .globe-row[data-end][data-v="b"] > .globe-arc .globe-arc::before {
     bottom: 0;
   }
 
@@ -1452,6 +1530,7 @@ body {
      a filter on a preserve-3d element flattens everything under it, and the
      picture would snap straight under the pointer. */
   @media (hover: hover) and (pointer: fine) {
+    .globe-tile:hover::before,
     .globe-tile:hover .globe-arc::before {
       filter: brightness(1.07);
     }

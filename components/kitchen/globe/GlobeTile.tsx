@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type { CSSProperties, ReactNode, RefObject } from "react";
 import type { GalleryTile } from "@/content/gallery";
-import { STRIPS } from "@/lib/globe";
+import { ROWS, STRIPS } from "@/lib/globe";
 import { useKitchen } from "@/lib/store";
 
 /**
@@ -42,6 +42,34 @@ function chain(side: "l" | "r"): ReactNode {
 }
 
 /**
+ * One half of a print's row chain, from the middle crease outward. `kv` is
+ * the row's place in the picture from the top, which its strips need to show
+ * the right band of it.
+ */
+function rows(side: "t" | "b"): ReactNode {
+  const half = ROWS / 2;
+  const kvs =
+    side === "b"
+      ? Array.from({ length: half }, (_, i) => half + i)
+      : Array.from({ length: half }, (_, i) => half - 1 - i);
+  return kvs.reduceRight<ReactNode>(
+    (inner, kv, depth) => (
+      <span
+        className="globe-row"
+        data-v={side}
+        data-end={depth === kvs.length - 1 || undefined}
+        style={{ "--kv": kv } as CSSProperties}
+      >
+        {chain("l")}
+        {chain("r")}
+        {inner}
+      </span>
+    ),
+    null,
+  );
+}
+
+/**
  * One picture on the globe.
  *
  * A `next/link` rather than a div with a handler, because it IS a link: the
@@ -62,18 +90,22 @@ export function GlobeTile({
   style,
   elRef,
   dragged,
+  hero = false,
 }: {
   tile: GalleryTile;
   style: CSSProperties;
   elRef: (el: HTMLAnchorElement | null) => void;
   /** Set by the pan while the pointer is down, so a drag never navigates. */
   dragged: RefObject<boolean>;
+  /** Taped down: one of the few prints the collage is built around. */
+  hero?: boolean;
 }) {
   return (
     <Link
       ref={elRef}
       href={tile.href}
       className="globe-tile"
+      data-hero={hero || undefined}
       aria-label={tile.alt}
       /*
        * No viewport prefetch. Thirty-three links are all "in view" from the
@@ -90,6 +122,7 @@ export function GlobeTile({
           ...style,
           "--src": `url(${JSON.stringify(tile.src)})`,
           "--strips": STRIPS,
+          "--rows": ROWS,
         } as CSSProperties
       }
       draggable={false}
@@ -104,24 +137,14 @@ export function GlobeTile({
         useKitchen.getState().setLeavingKitchen(true);
       }}
     >
-      {/* Three rows: a flat middle with a row hinged above and below it, each
-          carrying its own pair of strip chains. The rows curve the print top
-          to bottom and the strips side to side, so it lies on the ball in
-          both directions instead of standing proud of it at its top and
-          bottom edges -- which is where neighbouring prints used to cut
-          through it. */}
-      <span className="globe-row" data-row="m">
-        {chain("l")}
-        {chain("r")}
-        <span className="globe-row" data-row="t">
-          {chain("l")}
-          {chain("r")}
-        </span>
-        <span className="globe-row" data-row="b">
-          {chain("l")}
-          {chain("r")}
-        </span>
-      </span>
+      {/* The rows: a second hinge chain, running up and down from a crease
+          across the middle, each row carrying its own pair of strip chains.
+          The rows curve the print top to bottom and the strips side to side,
+          so it lies on the ball in both directions instead of standing proud
+          of it at its top and bottom edges -- which is where neighbouring
+          prints used to cut through it. */}
+      {rows("t")}
+      {rows("b")}
     </Link>
   );
 }

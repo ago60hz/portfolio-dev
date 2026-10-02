@@ -316,6 +316,7 @@ export function GlobeGallery() {
               key={tile.key}
               tile={tile}
               dragged={scroll.dragged}
+              hero={pose.hero}
               elRef={(el) => void (tileRefs.current[i] = el)}
               style={
                 {
