@@ -14,14 +14,14 @@ const NUDGE_AFTER_MS = 700;
  * The way into the gallery, and the way back out: a paper tag hanging off the
  * header's rule.
  *
- * Click it and it drops and spreads into the gallery's own paper. On the far
- * side the tag is purple and says "Back to kitchen": it always wears the
- * colour of where it takes you.
+ * Click it and it scales up into the gallery's own paper: the sheet starts
+ * as the tag's exact box and grows evenly to fill the Window. On the far side
+ * the tag is purple and says "Back to kitchen": it always wears the colour of
+ * where it takes you.
  *
- * One custom property does all of it. `--pull` on the wrapper, 0 or 1, is what
- * the sheet's clip, the tag's fade and its flip are written against, and a CSS
- * transition carries it between the two -- no React render per frame, and no
- * second animation that could disagree with the first.
+ * `--pull` on the wrapper, 0 or 1, eases the tag's fade and flip; the sheet's
+ * growth is a transform transition of its own on the same curve and length,
+ * so the two land together.
  *
  * Lives on the WINDOW, not in the header, for the same reason the gallery
  * does: the header is inside the scroller and its stacking context, and a tag
@@ -35,6 +35,7 @@ export function GalleryPull() {
   const booted = useEntranceReady();
 
   const wrapRef = useRef<HTMLDivElement>(null);
+  const sheetRef = useRef<HTMLDivElement>(null);
   const tagRef = useRef<HTMLButtonElement>(null);
   const [nudge, setNudge] = useState(false);
 
@@ -43,18 +44,36 @@ export function GalleryPull() {
   const arrive = bootDelay("header") + DURATION.enter;
   const reveal = useRevealProps("slide-top", booted, arrive);
 
-  // The sheet starts as the tag's exact shape, so it needs the tag's width.
-  // borderBoxSize for the same reason Header uses it: fractional, and blind
-  // to the boot's cover scale.
+  /*
+   * The sheet starts as the tag's exact box, so it needs both sizes: the
+   * scale that shrinks the full sheet onto the tag is their ratio, each way.
+   * borderBoxSize for the same reason Header uses it: fractional, and blind
+   * to the boot's cover scale.
+   */
   useEffect(() => {
     const tag = tagRef.current;
+    const sheet = sheetRef.current;
     const wrap = wrapRef.current;
-    if (!tag || !wrap) return;
-    const ro = new ResizeObserver(([entry]) => {
-      const w = entry.borderBoxSize?.[0]?.inlineSize ?? tag.offsetWidth;
-      wrap.style.setProperty("--tag-w", `${w}px`);
+    if (!tag || !sheet || !wrap) return;
+    const size = { tag: [0, 0], sheet: [0, 0] };
+    const publish = () => {
+      const [tw, th] = size.tag;
+      const [sw, sh] = size.sheet;
+      if (!tw || !sw || !sh) return;
+      wrap.style.setProperty("--sx", (tw / sw).toFixed(4));
+      wrap.style.setProperty("--sy", (th / sh).toFixed(4));
+    };
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const box = entry.borderBoxSize?.[0];
+        const dims = [box?.inlineSize ?? 0, box?.blockSize ?? 0];
+        if (entry.target === tag) size.tag = dims;
+        else size.sheet = dims;
+      }
+      publish();
     });
     ro.observe(tag);
+    ro.observe(sheet);
     return () => ro.disconnect();
   }, []);
 
@@ -73,12 +92,10 @@ export function GalleryPull() {
     <div
       ref={wrapRef}
       className="gallery-pull"
+      data-open={open || undefined}
       style={{ "--pull": open ? 1 : 0 } as CSSProperties}
     >
-      <div className="gallery-sheet" aria-hidden>
-        <span className="gallery-sheet-edge" />
-        <span className="gallery-sheet-paper" />
-      </div>
+      <div ref={sheetRef} className="gallery-sheet" aria-hidden />
 
       <div className="gallery-tag-slot">
         <motion.div {...reveal}>
@@ -113,7 +130,7 @@ export function GalleryPull() {
 function Knob() {
   return (
     <span className="gallery-tag-knob" aria-hidden>
-      <svg width="8" height="8" viewBox="0 0 8 8" fill="none">
+      <svg width="6" height="6" viewBox="0 0 8 8" fill="none">
         <path
           d="M1.5 3 4 5.5 6.5 3"
           stroke="currentColor"

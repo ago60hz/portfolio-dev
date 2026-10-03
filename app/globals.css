@@ -1164,11 +1164,14 @@ body {
     background: var(--color-kitchen-paper);
   }
 
+  /* `contain`, never `cover`: the slot is already the picture's own shape, so
+     this changes nothing until a rounding pixel would otherwise crop a board's
+     edge -- and a print is the owner's composition, shown whole. */
   .infinite-tile img {
     display: block;
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    object-fit: contain;
     transition: filter var(--duration-state) var(--ease-smooth);
   }
 
@@ -1200,55 +1203,44 @@ body {
     inset: 0;
     pointer-events: none;
     --pull: 0;
-    /* The tag's resting size. Its width is measured (GalleryPull publishes
-       --tag-w); the height and corner are the design's, in real pixels like
-       every other hit target in the header strip. */
+    /* The tag's height and corner, in real pixels like every other hit
+       target in the header strip. */
     --tag-h: 28px;
     --tag-r: 12px;
     transition: --pull var(--duration-surface) var(--ease-smooth);
   }
 
-  /* The sheet. Two layers clipped to the same shape -- ink, then paper one
-     pixel inside it and two along the bottom -- so it is drawn with exactly
-     the tag's stroke, including the Window's heavier bottom edge, and the tag
-     can fade off it without the outline changing at all.
+  /* The sheet: the tag, scaling up into the page.
 
-     It drops first and spreads second: the tongue of paper reaches the floor
-     by 62% of the pull and only starts widening at 18%, so it reads as a tag
-     drawn long and then let fall open, not as a rectangle scaling up.
-     Both phases are slices of the one --pull, so they cannot drift apart. */
+     It is laid out at its full size -- the visible Window under the header --
+     and starts scaled down onto the tag's own box, from the top centre where
+     the tag hangs (GalleryPull measures the two and publishes the ratios as
+     --sx and --sy). Opening lets the scale go, so the white of the tag grows
+     smoothly and evenly into the white of the page, on the same 900ms curve
+     the header repaints on.
+
+     A transform, not a clip: the browser runs it on the compositor, so it
+     stays smooth while the page is busy repainting the frame around it. An
+     animated clip-path was redrawn on the main thread every frame, and a
+     drop-then-spread in two phases read as two moves rather than one. */
   .gallery-sheet {
     position: absolute;
     inset: var(--under-header);
     z-index: 29;
-    /* Nothing at rest: the tag covers the sheet's starting shape exactly, but
-       the tag arrives with the entrance and the sheet must not be there first. */
-    opacity: calc(var(--pull) * 1000);
-    --down: clamp(0, var(--pull) / 0.62, 1);
-    --out: clamp(0, (var(--pull) - 0.18) / 0.82, 1);
-    --side: calc((1 - var(--out)) * (50% - var(--tag-w, 200px) / 2));
-    --rise: calc((1 - var(--down)) * (100% - var(--tag-h)));
-    --corner: calc((1 - var(--out)) * var(--tag-r));
-  }
-
-  .gallery-sheet > span {
-    position: absolute;
-    inset: 0;
-  }
-
-  .gallery-sheet-edge {
-    background: var(--color-kitchen-ink);
-    clip-path: inset(0 var(--side) var(--rise) round 0 0 var(--corner) var(--corner));
-  }
-
-  .gallery-sheet-paper {
     background: var(--color-kitchen-paper);
-    clip-path: inset(
-      0 calc(var(--side) + (1 - var(--out)) * 1px)
-        calc(var(--rise) + (1 - var(--down)) * 2px)
-      round 0 0 calc(var(--corner) - (1 - var(--out)) * 1px)
-        calc(var(--corner) - (1 - var(--out)) * 1px)
-    );
+    transform-origin: 50% 0;
+    transform: scale(var(--sx, 0.18), var(--sy, 0.035));
+    /* Invisible at rest under the tag, and only once it is back there. */
+    opacity: 0;
+    transition:
+      transform var(--duration-surface) var(--ease-smooth),
+      opacity 0s linear var(--duration-surface);
+  }
+
+  .gallery-pull[data-open] .gallery-sheet {
+    transform: none;
+    opacity: 1;
+    transition: transform var(--duration-surface) var(--ease-smooth);
   }
 
   /* Where the tag hangs. Clipped along the header's rule so the entrance
@@ -1313,7 +1305,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: 6px;
     white-space: nowrap;
     font-size: var(--text-fine);
     line-height: 1;
@@ -1331,11 +1323,13 @@ body {
 
   /* The pull: lime on ink, the same pairing as the Contact split button, so
      the strip's two controls are visibly one family. */
+  /* The size of the label it sits beside: 12px, the type's own size, so the
+     two read as one line rather than a word and a button. */
   .gallery-tag-knob {
     display: grid;
     place-items: center;
-    width: 16px;
-    height: 16px;
+    width: 12px;
+    height: 12px;
     border-radius: 999px;
     background: var(--color-kitchen-ink);
     color: var(--color-kitchen-lime);
@@ -1355,7 +1349,7 @@ body {
     }
 
     .gallery-tag:not([data-open]):hover .gallery-tag-knob {
-      translate: 0 2px;
+      translate: 0 1px;
     }
   }
 
@@ -1393,6 +1387,7 @@ body {
     .infinite-layer,
     .infinite-tile img,
     .gallery-pull,
+    .gallery-sheet,
     .gallery-tag {
       transition: none !important;
     }

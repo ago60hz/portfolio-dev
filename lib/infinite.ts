@@ -9,7 +9,7 @@
  */
 
 /**
- * Five columns of 360, about a third of the Window each.
+ * Four columns of 360, about a third of the Window each.
  *
  * Big enough to read: a print is a case-study screen, and the copy, the
  * numbers and the states on it are the point. At 150 and then 210 the detail
@@ -20,15 +20,17 @@
  * The COUNTS are set by the wrap, not by taste. The wall repeats on its own
  * size, so a print leaving one edge reappears at the other when it is half a
  * period from the middle, and that has to happen clear of the frame or the
- * lattice visibly shuffles. Five columns is 2400u against a 1077u Window, with
- * the column height well past the 846u the Window has under its header. Five
- * rather than six because twenty-two prints divide into five columns that can
- * be evened up almost exactly (see layoutSpread); at six, two columns were a
- * print short and showed it as gaps half as wide again as the rest.
+ * lattice visibly shuffles. Four columns is 1920u against a 1077u Window --
+ * the seam sits 960u out, past the Window's edge by more than half a print --
+ * with the column height well past the 846u the Window has under its header.
+ * Four because the boards, shown whole, come in only two or three shapes, and
+ * twenty-two of them even up across four columns to within a tenth (see
+ * layoutSpread); at five and six, some columns were a print short and showed
+ * it as gaps up to half as wide again as the rest.
  * `infinite.test.ts` asserts both, so thinning the pool fails loudly rather
  * than putting a seam on screen.
  */
-export const COLUMNS = 5;
+export const COLUMNS = 4;
 export const TILE_W = 360;
 export const GAP_X = 120;
 export const GAP_Y = 150;
