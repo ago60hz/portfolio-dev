@@ -1205,8 +1205,8 @@ body {
     --pull: 0;
     /* The tag's height and corner, in real pixels like every other hit
        target in the header strip. */
-    --tag-h: 28px;
-    --tag-r: 12px;
+    --tag-h: 21px;
+    --tag-r: 10px;
     transition: --pull var(--duration-surface) var(--ease-smooth);
   }
 
@@ -1223,11 +1223,28 @@ body {
      stays smooth while the page is busy repainting the frame around it. An
      animated clip-path was redrawn on the main thread every frame, and a
      drop-then-spread in two phases read as two moves rather than one. */
+  /* Its bottom corners are rounded the whole way, like the tag it grew from.
+     On screen the radius starts as the tag's own, swells a little through the
+     middle -- a soft sheet, not a box -- and lands on the Window's own corner,
+     so the corners close up flush and nothing shows round them as the room
+     goes. The sheet is drawn at full size and scaled, so the radius it is
+     DRAWN with is the on-screen radius divided by the current scale, each way;
+     --pull runs on the same curve and clock as the transform, so the division
+     tracks it exactly and the corners stay round, never squashed. */
   .gallery-sheet {
     position: absolute;
     inset: var(--under-header);
     z-index: 29;
     background: var(--color-kitchen-paper);
+    --scale-x: calc(var(--sx, 0.18) + (1 - var(--sx, 0.18)) * var(--pull));
+    --scale-y: calc(var(--sy, 0.035) + (1 - var(--sy, 0.035)) * var(--pull));
+    --round: calc(
+      var(--tag-r) + (var(--radius-window) - var(--tag-r)) * var(--pull) +
+        40px * sin(var(--pull) * 3.14159)
+    );
+    border-radius:
+      0 0 calc(var(--round) / var(--scale-x)) calc(var(--round) / var(--scale-x)) /
+      0 0 calc(var(--round) / var(--scale-y)) calc(var(--round) / var(--scale-y));
     transform-origin: 50% 0;
     transform: scale(var(--sx, 0.18), var(--sy, 0.035));
     /* Invisible at rest under the tag, and only once it is back there. */
@@ -1261,7 +1278,9 @@ body {
     position: relative;
     display: grid;
     min-height: var(--tag-h);
-    padding: 5px 6px 5px 11px;
+    /* Compact: the label and its knob, a hair of air above, a little more
+       below for the tag to hang by -- nothing that reads as a button. */
+    padding: 3px 5px 4px 9px;
     color: var(--color-kitchen-ink);
     background: var(--color-kitchen-paper);
     border: 1px solid var(--color-kitchen-ink);
@@ -1345,7 +1364,7 @@ body {
      that would leave the tag stretched after a tap. */
   @media (hover: hover) and (pointer: fine) {
     .gallery-tag:not([data-open]):hover {
-      padding-bottom: 8px;
+      padding-bottom: 6px;
     }
 
     .gallery-tag:not([data-open]):hover .gallery-tag-knob {
@@ -1366,16 +1385,16 @@ body {
 
   @keyframes gallery-tag-tug {
     to {
-      padding-bottom: 12px;
+      padding-bottom: 9px;
     }
   }
 
   @keyframes gallery-tag-release {
     from {
-      padding-bottom: 12px;
+      padding-bottom: 9px;
     }
     to {
-      padding-bottom: 5px;
+      padding-bottom: 4px;
     }
   }
 
