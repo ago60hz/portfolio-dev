@@ -4,7 +4,6 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { RadioBody } from './RadioBody'
 import { ButtonStack } from './ButtonStack'
 import { ScreenPanel } from './ScreenPanel'
-import { Cable } from './Cable'
 import { SpeakerRing } from './SpeakerRing'
 import { D } from './dims'
 import { studioEnvMap } from './materials'
@@ -120,7 +119,6 @@ function Scene({ radio, reducedMotion }: { radio: UseRadio; reducedMotion: boole
           onPressDown={radio.pressDown}
           onPressUp={radio.pressUp}
         />
-        <Cable />
           <SpeakerRing live={live} levelRef={radio.levelRef} />
         </group>
       </Rig>

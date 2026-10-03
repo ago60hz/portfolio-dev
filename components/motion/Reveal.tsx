@@ -82,6 +82,39 @@ export function useRevealProps(kind: RevealKind, shown: boolean, delay = 0) {
   };
 }
 
+/**
+ * One step between scroll-triggered entrances that fire together.
+ *
+ * Opening a case study puts the masthead and the first few blocks in view at
+ * once; without a queue they all arrived on the same frame. Every `view`
+ * Reveal that comes into view is held for the rest of the frame, the batch is
+ * put in document order (separate observers do not report in any order of
+ * their own), and each takes the next free slot -- so the page lands section
+ * by section, top to bottom. A block scrolled to on its own finds the queue
+ * empty and arrives at once.
+ */
+const VIEW_STEP = 0.12;
+let viewQueue = 0;
+let pending: { el: Element; own: number; go: (delay: number) => void }[] = [];
+function bookViewSlot(el: Element, own: number, go: (delay: number) => void) {
+  pending.push({ el, own, go });
+  if (pending.length > 1) return;
+  requestAnimationFrame(() => {
+    const batch = pending.sort((a, b) =>
+      a.el.compareDocumentPosition(b.el) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1,
+    );
+    pending = [];
+    const now = performance.now() / 1000;
+    for (const { own, go } of batch) {
+      const slot = Math.max(now, viewQueue);
+      viewQueue = slot + VIEW_STEP;
+      // An authored delay is a floor, not an addition: the masthead's beats
+      // already step, and stacking them on the queue would double the wait.
+      go(Math.max(own, slot - now));
+    }
+  });
+}
+
 export function Reveal({
   children,
   kind = "rise",
@@ -103,6 +136,7 @@ export function Reveal({
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const [seen, setSeen] = useState(false);
+  const [viewDelay, setViewDelay] = useState(delay);
   const reduced = useReducedMotion();
 
   useEffect(() => {
@@ -114,12 +148,19 @@ export function Reveal({
     // choice for the same reason.
     const root = document.querySelector<HTMLElement>("[data-study-scroll]");
     const io = new IntersectionObserver(
-      ([e]) => e.isIntersecting && setSeen(true),
+      ([e]) => {
+        if (!e.isIntersecting) return;
+        io.disconnect();
+        bookViewSlot(el, delay, (d) => {
+          setViewDelay(d);
+          setSeen(true);
+        });
+      },
       { root, rootMargin: "0px 0px -12% 0px" },
     );
     io.observe(el);
     return () => io.disconnect();
-  }, [on, seen]);
+  }, [on, seen, delay]);
 
   const shown = on === "boot" ? !!booted : seen;
   // Ready before the first paint means there is nothing to enter FROM. A case
@@ -132,7 +173,10 @@ export function Reveal({
     : {
         initial: FROM[kind],
         animate: shown ? TO : FROM[kind],
-        transition: { ...EASE[kind], delay: shown ? delay : 0 },
+        transition: {
+          ...EASE[kind],
+          delay: shown ? (on === "view" ? viewDelay : delay) : 0,
+        },
       };
 
   return (
