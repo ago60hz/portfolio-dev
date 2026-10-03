@@ -1,7 +1,7 @@
 /**
  * The id a case-study still is given in the article.
  *
- * The globe gallery links a tile to the exact picture it shows rather than to
+ * The infinite gallery links a tile to the exact picture it shows rather than to
  * the top of the study, so every image on a study page needs a stable id and
  * both ends have to agree on it without a shared table. Deriving it from the
  * file path is what guarantees that: the tile and the article start from the

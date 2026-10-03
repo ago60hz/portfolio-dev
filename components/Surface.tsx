@@ -19,11 +19,11 @@ import { useKitchen } from "@/lib/store";
  */
 export function Surface({ children }: { children: ReactNode }) {
   const onSand = useOnSand();
-  const globeOpen = useKitchen((s) => s.globeOpen);
+  const infiniteOpen = useKitchen((s) => s.infiniteOpen);
 
   return (
     <main
-      data-surface={onSand ? "sand" : globeOpen ? "paper" : "purple"}
+      data-surface={onSand ? "sand" : infiniteOpen ? "paper" : "purple"}
       className="bg-kitchen-surface flex h-dvh w-full gap-2 p-2"
     >
       {children}

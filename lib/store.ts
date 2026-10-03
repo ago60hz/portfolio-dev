@@ -42,14 +42,14 @@ type KitchenState = {
    */
   galleryRevealed: boolean;
   /**
-   * The Window's other gallery: the globe of case-study UI.
+   * The Window's other gallery: the infinite wall of case-study UI.
    *
    * Deliberately a separate flag from `galleryRevealed`, which belongs to the
    * photo board on the wall. They are two different objects that happen to
    * share a word -- one is furniture in the room, this one REPLACES the room,
    * and the gallery tag that drives it also repaints the whole surface.
    */
-  globeOpen: boolean;
+  infiniteOpen: boolean;
   /**
    * False until the loading animation has handed the room over.
    *
@@ -88,7 +88,7 @@ type KitchenState = {
   setSoundEnabled: (on: boolean, byUser?: boolean) => void;
   setLeavingKitchen: (on: boolean) => void;
   setGalleryRevealed: (open: boolean) => void;
-  setGlobeOpen: (open: boolean) => void;
+  setInfiniteOpen: (open: boolean) => void;
   setBooted: (on: boolean) => void;
   addScore: (n?: number) => void;
 };
@@ -102,7 +102,7 @@ export const useKitchen = create<KitchenState>((set) => ({
   soundEnabled: false,
   soundMutedByUser: false,
   galleryRevealed: false,
-  globeOpen: false,
+  infiniteOpen: false,
   booted: false,
   leavingKitchen: false,
   score: 0,
@@ -127,11 +127,11 @@ export const useKitchen = create<KitchenState>((set) => ({
     })),
   setLeavingKitchen: (on) => set({ leavingKitchen: on }),
   setGalleryRevealed: (open) => set({ galleryRevealed: open }),
-  // Opening the globe closes the wall board and clears any filter: all three
+  // Opening the gallery closes the wall board and clears any filter: all three
   // are ways of changing what the Window is showing, and leaving a dim or a
-  // scaled photo board behind the globe puts two of them on screen at once.
-  setGlobeOpen: (open) =>
-    set(open ? { globeOpen: true, galleryRevealed: false, activeFilter: null } : { globeOpen: false }),
+  // scaled photo board behind the gallery puts two of them on screen at once.
+  setInfiniteOpen: (open) =>
+    set(open ? { infiniteOpen: true, galleryRevealed: false, activeFilter: null } : { infiniteOpen: false }),
   setBooted: (on) => set({ booted: on }),
   addScore: (n = 1) => set((s) => ({ score: s.score + n })),
 }));

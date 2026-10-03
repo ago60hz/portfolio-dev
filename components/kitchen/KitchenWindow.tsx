@@ -10,8 +10,8 @@ import { Shelf } from "./Shelf";
 import { WallGallery } from "./gallery/WallGallery";
 import { Loader } from "@/components/loader/Loader";
 import { BackgroundVideo } from "./BackgroundVideo";
-import { GalleryPull } from "./globe/GalleryPull";
-import { GlobeGallery } from "./globe/GlobeGallery";
+import { GalleryPull } from "./infinite/GalleryPull";
+import { InfiniteGallery } from "./infinite/InfiniteGallery";
 import { useKitchen } from "@/lib/store";
 
 function intoShelves<T>(items: T[], size: number): T[][] {
@@ -45,7 +45,7 @@ export function KitchenWindow() {
    * height is the scene's less the header's, so `--floor-flex` divides exactly
    * the same remainder it did before.
    */
-  const globeOpen = useKitchen((s) => s.globeOpen);
+  const infiniteOpen = useKitchen((s) => s.infiniteOpen);
   /*
    * Three cans a shelf on the design frame, two on the phone -- which turns
    * nine works into three shelves or five. The split has to happen here
@@ -62,7 +62,7 @@ export function KitchenWindow() {
           behind it is invisible and inert, so the only thing that should move
           under a gesture is the wall, never the kitchen it replaced. */}
       <div
-        className={`flex min-h-0 flex-1 ${globeOpen ? "overflow-hidden" : "overflow-auto"}`}
+        className={`flex min-h-0 flex-1 ${infiniteOpen ? "overflow-hidden" : "overflow-auto"}`}
       >
         <div
           // `isolate` contains the background film's OVERLAY blend to the
@@ -84,12 +84,12 @@ export function KitchenWindow() {
               the scene itself carries a note about. */}
           <div
             className="kitchen-room relative flex flex-1 flex-col bg-repeat"
-            data-hidden={globeOpen}
+            data-hidden={infiniteOpen}
             style={{
               backgroundImage: "url(/assets/scene/wall-tile.webp)",
               backgroundSize: "var(--wall-tile-size) auto",
             }}
-            {...(globeOpen && { inert: true })}
+            {...(infiniteOpen && { inert: true })}
           >
             {/* The wall's film (1:192). First child and z-0, so it sits on the
                 tile it blends with and under everything else in the room. */}
@@ -153,20 +153,16 @@ export function KitchenWindow() {
       {/* Inside the Window on purpose: the boot scales the Window up to cover
           the viewport and back down again, and the loader rides along with it.
           Being in here is also what keeps it off the case studies. */}
-      {/* The globe of case-study UI, anchored to the WINDOW rather than to
-          the scene. Below lg the scene is 1344u tall and scrolls, so a layer
-          sized to it put the globe's centre wherever the middle of the room
-          happened to be -- well below the fold on a phone. Out here it covers
-          exactly the visible Window under the header, at any frame and any
-          scroll position, and a gesture on it can never reach the scroller. */}
-      {/* The tag that opens it, and the paper sheet it unrolls into. Out here
-          with the globe and for the same reason: the sheet has to cover the
-          visible Window at any scroll, and the tag has to sit above the
+      {/* The infinite gallery of case-study UI, and the tag that opens it,
+          anchored to the WINDOW rather than to the scene. Below lg the scene
+          is 1344u tall and scrolls; out here the gallery covers exactly the
+          visible Window under the header at any scroll position, a gesture on
+          it can never reach the scroller, and the tag can sit above the
           gallery it leads back out of, which nothing inside the scroller's
           stacking context can do. */}
       <GalleryPull />
 
-      <GlobeGallery />
+      <InfiniteGallery />
 
       <Loader />
     </div>

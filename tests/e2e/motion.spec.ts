@@ -93,7 +93,7 @@ test.describe("the loader", () => {
             .backgroundSize,
         ),
         // .kitchen-room, not .kitchen-scene: the wall moved onto the room
-        // when the globe gallery gave the Window a second view. A
+        // when the infinite gallery gave the Window a second view. A
         // background-image cannot be transitioned, so the only way the tile
         // leaves is with the element it is painted on.
         sceneTile: parseFloat(

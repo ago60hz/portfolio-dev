@@ -681,7 +681,7 @@ body {
     --color-kitchen-surface: var(--color-kitchen-tan);
   }
 
-  /* The globe gallery does the same thing a third time (458:1830 against
+  /* The infinite gallery does the same thing a third time (458:1830 against
      457:1411): every purple in the frame goes to paper, and the header strip
      goes with it. One variable again, for the same reason -- the header, the
      sidebar and the page ground are one surface and must not repaint in three
@@ -712,23 +712,9 @@ body {
   [data-surface],
   [data-surface] [class*="bg-kitchen-surface"],
   [data-surface] [class*="border-kitchen-surface"] {
-    /* The clock is a variable so the gallery tag can hand the repaint the
-       SAME curve and length its sheet is finishing on when a drag is let go.
-       Otherwise the frame lands on its own 900ms schedule after a sheet that
-       already has. */
     transition:
-      background-color var(--surface-dur, var(--duration-surface))
-        var(--surface-ease, var(--ease-smooth)),
-      border-color var(--surface-dur, var(--duration-surface))
-        var(--surface-ease, var(--ease-smooth));
-  }
-
-  /* While the tag is in a hand the frame's colour is written every frame from
-     the pull, and a transition on top would only make it trail the hand. */
-  [data-surface][data-pulling],
-  [data-surface][data-pulling] [class*="bg-kitchen-surface"],
-  [data-surface][data-pulling] [class*="border-kitchen-surface"] {
-    transition: none;
+      background-color var(--duration-surface) var(--ease-smooth),
+      border-color var(--duration-surface) var(--ease-smooth);
   }
 
   @media (prefers-reduced-motion: reduce) {
@@ -1066,64 +1052,16 @@ body {
   }
 }
 
-/* -- The globe gallery -----------------------------------------------------
-   The Window's second view: every case-study still at once, clumped into a
-   slowly turning sphere and thrown out into an endless spread when it is
-   pushed. Modelled off the reference recording rather than invented -- there,
-   the collapse runs about 900ms and the throw about 680ms, both eased in and
-   out, which are `--duration-drop` and `--duration-settle` on `--ease-smooth`.
-
-   Nothing here is WebGL. Forty <img> elements on `preserve-3d` cost one
-   composited layer each and no context, no shader compilation and no second
-   rAF loop competing with the radio for frames. The ONE thing JavaScript drives
-   is `--spin`, a single custom property on a single element; the morph itself
-   is a CSS transition between two static transform strings. */
-@property --spin {
-  syntax: "<angle>";
-  inherits: false;
-  initial-value: 0deg;
-}
-
-/* The globe's lean. Registered for the same reason --spin is: both have to
-   ease back to flat as the sphere opens out, and an unregistered custom
-   property is a string as far as a transition is concerned. */
-@property --tilt {
-  syntax: "<angle>";
-  inherits: false;
-  initial-value: -8deg;
-}
-
-/* How far the wall has been scrolled, in scene units. Registered so it can
-   TRAVEL home: the tiles fly to the sphere from wherever they actually are,
-   while the container eases its scroll back underneath them. Without that a
-   wall three screens sideways gathered into a globe three screens sideways,
-   off the edge of the Window. */
-@property --pan-x {
-  syntax: "<number>";
-  inherits: false;
-  initial-value: 0;
-}
-
-@property --pan-y {
-  syntax: "<number>";
-  inherits: false;
-  initial-value: 0;
-}
-
-/* How far a picture is wrapped onto the sphere: 0 flat on the wall, 1 bent to
-   the ball's curvature. Registered so it can ease -- and INHERITED, because
-   every hinge in the tile's strip chain reads it, and they are the tile's
-   descendants, not the tile. */
-@property --bend {
-  syntax: "<number>";
-  inherits: true;
-  initial-value: 0;
-}
+/* -- The infinite gallery ---------------------------------------------------
+   The Window's second view: every curated case-study still on one endless
+   wall, scrolled in any direction. Nothing on it animates by itself -- the
+   only motion is the scroll, written by useInfiniteScroll as two numbers on
+   one element. */
 
 /* The tag's pull, 0 in the kitchen and 1 on the gallery. One number drives
-   the sheet's shape, the tag's fade and its flip, so a drag and a click are
-   the same animation run by different hands. Inherited for the same reason
-   --bend is: the sheet and the tag both read it from the wrapper. */
+   the sheet's shape, the tag's fade and its flip, so they cannot drift apart.
+   Registered so CSS can ease it, and inherited, because the sheet and the tag
+   both read it from the wrapper. */
 @property --pull {
   syntax: "<number>";
   inherits: true;
@@ -1145,304 +1083,118 @@ body {
     transition-delay: var(--duration-surface);
   }
 
-  /* The gallery waits for half the sheet. Before that the paper is still a
+  /* The wall waits for half the sheet. Before that the paper is still a
      narrow tongue down the middle of the room, and pictures appearing over
-     purple either side of it is the gallery arriving before its own ground.
-     From the halfway mark it fades in over the paper and clumps as it lands,
-     which keeps what the old timing was for: the tiles are solid in flight. */
-  .globe-layer {
+     purple either side of it is the gallery arriving before its own ground. */
+  .infinite-layer {
     transition: opacity var(--duration-enter) var(--ease-smooth);
   }
 
-  .globe-layer[data-open="true"] {
+  .infinite-layer[data-open="true"] {
     transition-delay: calc(var(--duration-surface) / 2);
   }
 
   .kitchen-room[data-hidden="true"],
-  .globe-layer[data-open="false"] {
+  .infinite-layer[data-open="false"] {
     opacity: 0;
   }
 
-  /* The visible Window under the header, shared by the globe and the tag's
+  /* The visible Window under the header, shared by the wall and the tag's
      sheet so the two cover exactly the same box.
 
      Under the header, not over it: the strip's rule is where the tag hangs,
-     and the box is the visible Window rather than the scene so the globe sits
-     in the middle of what is actually on screen. The top is the header's
-     MEASURED height (published by Header as --header-real), with the token as
-     the fallback for the first frame.
+     and the box is the visible Window rather than the scene, so the wall's
+     middle is the middle of what is actually on screen. The top is the
+     header's MEASURED height (published by Header as --header-real), with the
+     token as the fallback for the first frame.
 
      Plus the Window's own stroke on every side -- 1px, 1px at the sides and
      2px along the bottom. Chrome positions these layers from the Window's
      BORDER box rather than its padding box (measured: the layer's rect was
      identical to the Window's), so `inset: 0` put the layer's edge on the
      outside of the stroke and every picture that reached an edge painted over
-     it. Insetting by the border is right in either reading: where a browser
-     does use the padding box it costs a hairline of paper, and the pictures
-     still sit behind the frame. */
+     it. */
   .kitchen-stage {
     --header-bottom: calc(var(--header-real, max(var(--header-h), 32px)) + 1px);
     --under-header: var(--header-bottom) 1px 2px 1px;
   }
 
-  .globe-layer {
+  .infinite-layer {
     position: absolute;
     inset: var(--under-header);
     z-index: 30;
-    /* Deep enough that a tile crossing the near pole does not balloon. At the
-       sphere's 200u radius a 900px perspective gives about 1.3x between the
-       far and near faces, which is the depth the reference shows. */
-    perspective: calc(900 * var(--u));
     overflow: hidden;
-    /* `overflow` alone is not trusted to hold the tiles: each one on
-       `preserve-3d` is composited on its own layer, and `clip-path` clips the
-       flattened result of the whole subtree, which nothing inside can escape. */
-    clip-path: inset(0);
+    /* Wheel and touch both belong to the wall; the page under it never
+       scrolls while it is up. */
+    touch-action: none;
+    overscroll-behavior: contain;
   }
 
-  /* The turntable. One transform, so the pan and the spin have to share it --
-     which is fine, because they are never both in play: the pan only moves in
-     the spread, where the spin is parked. */
-  .globe-spin {
+  /* The scroll: one transform on one element, from two numbers the scroll
+     hook writes. No transition -- the hook does its own easing, and a CSS one
+     on top would only make the wall lag the hand. */
+  .infinite-pan {
     position: absolute;
     inset: 0;
-    transform-style: preserve-3d;
     transform: translate3d(
-        calc(var(--pan-x) * var(--u)),
-        calc(var(--pan-y) * var(--u)),
-        0
-      )
-      rotateX(var(--tilt)) rotateY(var(--spin));
-    /* The scroll and the lean ease in BOTH directions, so this lives on the
-       base rule. --spin deliberately does not: it is written every frame while
-       the globe turns, and a transition on a property under a rAF loop only
-       makes the turn lag its own clock. It joins the list in the grid rule,
-       where the turn has stopped and the angle has one target left. */
-    transition:
-      --pan-x var(--duration-drop) var(--ease-smooth),
-      --pan-y var(--duration-drop) var(--ease-smooth),
-      --tilt var(--duration-settle) var(--ease-smooth);
+      calc(var(--pan-x, 0) * var(--u)),
+      calc(var(--pan-y, 0) * var(--u)),
+      0
+    );
   }
 
-  /* The spread is flat, so the lean that gives the globe its poles has to go
-     with it -- and the turn has to unwind rather than be cut.
-
-     Both angles are transitioned, NOT the transform: interpolating the
-     transform itself decomposes two matrices and takes the short way round, so
-     a sphere caught at 200 degrees visibly span BACKWARDS as it opened. The
-     component that is actually turning is the angle, so that is the thing to
-     animate -- and the spin loop hands it a whole multiple of 360 to land on,
-     which is the same pose it is already in. */
-  .globe-layer[data-mode="grid"] .globe-spin {
-    --tilt: 0deg;
-    transition:
-      --spin var(--duration-settle) var(--ease-smooth),
-      --tilt var(--duration-settle) var(--ease-smooth),
-      transform var(--duration-settle) var(--ease-smooth);
-  }
-
-  /* And nothing transitions while a gesture is in flight: the spring in
-     useSpreadScroll is what carries the smoothness there, and an easing on top
-     of it would only make the wall lag the hand. */
-  .globe-layer[data-moving="true"] .globe-spin,
-  .globe-layer[data-moving="true"] .globe-tile {
-    transition: none;
-  }
-
-  /* The tile paints nothing itself: its strips are the picture. It is the
-     box the transforms are built on and the link, and that is all -- a flat
-     ground here would sit in the tangent plane and cover the edges of the
-     curve, which bend away BEHIND it. */
-  .globe-tile {
+  /* A print: the picture, nothing else -- no frame, no paper, no outline --
+     at its slot, plus the whole periods it has been wrapped by. No transition
+     either: a print that wraps jumps a period while it is off-screen, which is
+     what keeps the pictures from sliding across the wall on their own. */
+  .infinite-tile {
     position: absolute;
     top: 50%;
     left: 50%;
     width: var(--tw);
     height: var(--th);
     margin: calc(var(--th) / -2) 0 0 calc(var(--tw) / -2);
-    transform-style: preserve-3d;
-    transform: var(--t-globe);
-    border-radius: calc(2 * var(--u));
-    cursor: pointer;
-    --bend: 1;
-    /* Both strings carry the same transform functions in the same order (see
-       lib/globe.ts), so this interpolates component by component: the sphere's
-       rotation unwinds while the slot's offset eases in.
-
-       --bend is the hand-over between the flat face and the curved patches,
-       on the same delayed clock as the patches' curl (see .globe-patch). */
-    transition:
-      transform var(--duration-drop) var(--ease-smooth) var(--tile-delay, 0ms),
-      --bend var(--duration-settle) var(--ease-elastic)
-        calc(var(--tile-delay, 0ms) + var(--duration-drop) / 2);
+    transform: translate3d(
+      calc((var(--sx) + var(--wx, 0)) * var(--u)),
+      calc((var(--sy) + var(--wy, 0)) * var(--u)),
+      0
+    );
+    border-radius: calc(3 * var(--u));
+    overflow: hidden;
+    background: var(--color-kitchen-paper);
   }
 
-  .globe-layer[data-mode="grid"] .globe-tile {
-    transform: var(--t-grid);
-    --bend: 0;
-    /* The throw is quicker than the clump, exactly as the reference plays it:
-       a gallery opening out should feel released, and one balling up should
-       feel gathered. Written out in full rather than as a duration override,
-       because the bend runs on its own clock here. */
-    transition:
-      transform var(--duration-settle) var(--ease-smooth) var(--tile-delay, 0ms),
-      --bend var(--duration-state) var(--ease-slow-down) var(--tile-delay, 0ms);
-  }
-
-  /* The decal's patches: the print, cut GRID x GRID, each patch carrying its
-     own slice of the picture on white paper and its own projective transform
-     onto the ball (computed in lib/globe -- `decal`).
-
-     Flat on the wall a patch has no transform at all; on the ball it takes
-     its curve. The move between the two is the bend, timed as the paper's
-     was: the print stays flat while it is thrown and only wraps as it nears
-     the ball, half a drop in, on elastic -- a sheet that wraps a surface
-     overshoots it slightly and springs back. Thrown off, it springs flat at
-     once, the way a sheet does when it lets go.
-
-     No shading. The curve is carried by the geometry -- the silhouettes, the
-     perspective, the overlaps -- and a grey gradient laid over every print
-     only dirtied the colour of the work it was meant to flatter.
-
-     The keyline is the site's own ink stroke, painted inside the patches that
-     carry an outer edge, so the collage is drawn in the same hand as the cans,
-     the tags and the Window. The paper is pure white rather than the page's
-     paper, so a print lifts off the ground by colour alone. */
-  .globe-tile {
-    --print-line: linear-gradient(var(--color-kitchen-ink), var(--color-kitchen-ink));
-    --m: calc(2.5 * var(--u));
-  }
-
-  .globe-patch {
-    position: absolute;
-    transform-origin: 0 0;
-    background-color: #fff;
-    background-image:
-      var(--line-t, none), var(--line-b, none), var(--line-l, none), var(--line-r, none),
-      var(--src);
-    background-repeat: no-repeat;
-    background-size:
-      100% 1px,
-      100% 1px,
-      1px 100%,
-      1px 100%,
-      calc(var(--tw) - 2 * var(--m)) calc(var(--th) - 2 * var(--m));
-    background-position:
-      0 0,
-      0 100%,
-      0 0,
-      100% 0,
-      calc(var(--m) - var(--px)) calc(var(--m) - var(--py));
-    backface-visibility: hidden;
-    transform: none;
-    /* Only while the print is curved; flat, the whole print takes over. */
-    opacity: clamp(0, (var(--bend) - 0.01) * 1000, 1);
-    transition:
-      transform var(--duration-state) var(--ease-slow-down) var(--tile-delay, 0ms),
-      filter var(--duration-state) var(--ease-smooth);
-  }
-
-  .globe-layer[data-mode="globe"] .globe-patch,
-  .globe-layer[data-mode="globe"] .globe-tape {
-    transform: var(--curve);
-    transition:
-      transform var(--duration-settle) var(--ease-elastic)
-        calc(var(--tile-delay, 0ms) + var(--duration-drop) / 2),
-      filter var(--duration-state) var(--ease-smooth);
-  }
-
-  .globe-patch[data-t] {
-    --line-t: var(--print-line);
-  }
-
-  .globe-patch[data-b] {
-    --line-b: var(--print-line);
-  }
-
-  .globe-patch[data-l] {
-    --line-l: var(--print-line);
-  }
-
-  .globe-patch[data-r] {
-    --line-r: var(--print-line);
-  }
-
-  /* The heroes are taped on: a leaning strip half on the print and half off
-     it, opaque -- see-through, the print's keyline ran through it like a
-     strikethrough -- lime or purple with an ink edge on its long sides -- the brand's two
-     colours, carried on the prints the collage is built around instead of on
-     chrome around them. Its own little decal (lib/globe -- `tapeFor`), so on
-     the ball it wraps with the paper, and on the wall it lies flat at the
-     same lean. Always drawn: the tape is the one part that is the same
-     object in both poses. */
-  .globe-tape {
-    position: absolute;
-    transform-origin: 0 0;
-    background: var(--tape-colour);
-    border-block: 1px solid var(--color-kitchen-ink);
-    backface-visibility: hidden;
-    transform: var(--flat);
-    transition: transform var(--duration-state) var(--ease-slow-down) var(--tile-delay, 0ms);
-  }
-
-  .globe-tape[data-tone="lime"] {
-    --tape-colour: var(--color-kitchen-lime);
-  }
-
-  .globe-tape[data-tone="purple"] {
-    --tape-colour: var(--color-kitchen-purple);
-  }
-
-  /* The print flat, in one piece, for the wall.
-
-     The patchwork exists to curve. Flat, its joins are all cost: on the wall,
-     where a print is drawn at a fraction of its laid-out size, every join
-     between patches resolved to a faint grid across the picture. So the
-     moment the bend lets go the patches hand over to this single face, which
-     is the same print in the same place -- the swap happens at a bend of 1%,
-     where the two are indistinguishable. */
-  .globe-tile::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    border: 1px solid var(--color-kitchen-ink);
-    background-color: #fff;
-    background-image: var(--src);
-    background-repeat: no-repeat;
-    background-origin: border-box;
-    background-size: calc(var(--tw) - 2 * var(--m)) calc(var(--th) - 2 * var(--m));
-    background-position: var(--m) var(--m);
-    backface-visibility: hidden;
-    opacity: clamp(0, (0.01 - var(--bend)) * 1000, 1);
+  .infinite-tile img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
     transition: filter var(--duration-state) var(--ease-smooth);
   }
 
-  /* Hover is the only affordance a tile has: it says "this is a link" without
-     adding chrome that would be drawn forty times. On the faces, not the tile:
-     a filter on a preserve-3d element flattens everything under it, and the
-     picture would snap straight under the pointer. */
+  /* Hover is the only affordance a print has: it says "this is a link"
+     without adding chrome that would be drawn twenty times. */
   @media (hover: hover) and (pointer: fine) {
-    .globe-tile:hover::before,
-    .globe-tile:hover .globe-patch {
-      filter: brightness(1.07);
+    .infinite-tile:hover img {
+      filter: brightness(1.06);
     }
   }
 
-  .globe-tile:focus-visible {
+  .infinite-tile:focus-visible {
     outline: 2px solid var(--color-kitchen-ink);
     outline-offset: 2px;
   }
 
   /* -- The gallery tag ------------------------------------------------------
-     A paper tag hanging off the header's rule. Pulled or clicked, it drops
-     and spreads into the gallery's paper -- the tag and the page it opens are
+     A paper tag hanging off the header's rule. Clicked, it drops and spreads
+     into the gallery's paper -- the tag and the page it opens are
      the same white, so the handle simply BECOMES the destination rather than
      launching it. On the far side it is the way back: purple, the colour of
      the room it returns to.
 
      The wrapper holds --pull for both halves and is deliberately not a
      stacking context (no z-index, no transform), so the sheet can sit under
-     the globe at 29 and the tag over it at 35 while sharing one variable. */
+     the gallery at 29 and the tag over it at 35 while sharing one variable. */
   .gallery-pull {
     position: absolute;
     inset: 0;
@@ -1456,11 +1208,6 @@ body {
     transition: --pull var(--duration-surface) var(--ease-smooth);
   }
 
-  /* A hand is on it: the sheet follows the hand, not a clock. */
-  .gallery-pull[data-dragging] {
-    transition: none;
-  }
-
   /* The sheet. Two layers clipped to the same shape -- ink, then paper one
      pixel inside it and two along the bottom -- so it is drawn with exactly
      the tag's stroke, including the Window's heavier bottom edge, and the tag
@@ -1468,7 +1215,7 @@ body {
 
      It drops first and spreads second: the tongue of paper reaches the floor
      by 62% of the pull and only starts widening at 18%, so it reads as a tag
-     being pulled long and then let fall open, not as a rectangle scaling up.
+     drawn long and then let fall open, not as a rectangle scaling up.
      Both phases are slices of the one --pull, so they cannot drift apart. */
   .gallery-sheet {
     position: absolute;
@@ -1529,8 +1276,7 @@ body {
     border-top: 0;
     border-bottom-width: 2px;
     border-radius: 0 0 var(--tag-r) var(--tag-r);
-    cursor: grab;
-    touch-action: none;
+    cursor: pointer;
     /* Present at both ends of the pull and gone through the middle, where the
        sheet it turned into is doing the talking. It is still the button the
        whole way, so a click mid-flight turns the move round. */
@@ -1539,15 +1285,6 @@ body {
       clamp(0, (var(--pull) - 0.82) / 0.18, 1)
     );
     transition: padding-bottom var(--duration-state) var(--ease-smooth);
-  }
-
-  .gallery-tag:active {
-    cursor: grabbing;
-  }
-
-  .gallery-tag[data-open] {
-    cursor: pointer;
-    touch-action: manipulation;
   }
 
   /* The way-back fill. A layer rather than a background change, so it can
@@ -1649,18 +1386,12 @@ body {
   }
 
   /* Reduced motion gets both views, and the switch between them, with no
-     travel at all -- the same rule the room's entrance follows. The globe
-     still forms, because the sphere IS the content; it simply does not turn
-     and does not fly. The sheet arrives whole rather than unrolling; a drag
-     still moves it, because a hand moving a thing is not motion anyone has
-     opted out of. */
+     travel at all -- the same rule the room's entrance follows. The sheet
+     arrives whole rather than unrolling. */
   @media (prefers-reduced-motion: reduce) {
     .kitchen-room,
-    .globe-layer,
-    .globe-tile,
-    .globe-patch,
-    .globe-tape,
-    .globe-layer[data-mode="grid"] .globe-spin,
+    .infinite-layer,
+    .infinite-tile img,
     .gallery-pull,
     .gallery-tag {
       transition: none !important;

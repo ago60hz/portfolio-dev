@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { CASE_STUDIES, studyBySlug } from "./case-studies";
 import { GALLERY_TILES } from "./gallery";
 import { mediaAnchor } from "@/lib/anchors";
-import { TILE_W, layoutSpread } from "@/lib/globe";
+import { TILE_W, layoutSpread } from "@/lib/infinite";
 
 /** Every anchor a study actually renders, from the blocks the page draws. */
 const anchorsOf = (slug: string) =>
@@ -47,10 +47,11 @@ describe("GALLERY_TILES", () => {
   it("serves resized thumbnails, never the article's artwork", () => {
     for (const tile of GALLERY_TILES) {
       expect(tile.src).toMatch(/^\/assets\/gallery-tiles\//);
-      // The pool is generated at 640px, 2x the widest print on the collage.
-      // Anything wider means a stale run of scripts/gallery-tiles.mjs and
-      // full-size artwork on the globe.
-      expect(tile.width).toBeLessThanOrEqual(640);
+      expect(tile.src2x).toMatch(/^\/assets\/gallery-tiles\/.*@2x\.webp$/);
+      // The pool is generated at 480px (and 960 for dense screens). Anything
+      // wider means a stale run of scripts/gallery-tiles.mjs and full-size
+      // artwork on the wall.
+      expect(tile.width).toBeLessThanOrEqual(480);
     }
   });
 
@@ -72,7 +73,7 @@ describe("GALLERY_TILES", () => {
 
   it("interleaves the studies rather than listing them", () => {
     // The first pass has to deal one tile from each study before any study
-    // takes a second, or half a rotation of the globe is one client.
+    // takes a second, or the first screen of the wall is one client.
     const first = GALLERY_TILES.slice(0, CASE_STUDIES.length).map((t) => t.slug);
     expect(new Set(first).size).toBe(CASE_STUDIES.length);
   });

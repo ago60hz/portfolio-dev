@@ -5,7 +5,7 @@ import { useEffect } from "react";
 /**
  * Arriving at a picture rather than at the top of the article.
  *
- * The globe gallery links each tile to the exact still it shows, so a study can
+ * The infinite gallery links each tile to the exact still it shows, so a study can
  * be opened at `#media-04-stepper` and has to land there. Two things stop the
  * browser doing this on its own.
  *

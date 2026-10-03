@@ -1,15 +1,15 @@
-// Build the globe gallery's thumbnail pool.
+// Build the infinite gallery's print pool.
 //
 //   node scripts/gallery-tiles.mjs
 //
-// The globe shows every curated case-study still at once -- around forty
+// The wall shows every curated case-study still at once -- around twenty
 // images on screen together -- so it cannot reuse the article's artwork. Those
 // files run to 3840px and 11MB a folder, and forty of them is a multi-megabyte
 // download for a decoration the visitor has not asked for yet.
 //
 // This resizes each one to TILE_W wide and writes them to
 // public/assets/gallery-tiles/, plus a generated module carrying the measured
-// dimensions so the globe never has to guess an aspect ratio.
+// dimensions so the wall never has to guess an aspect ratio.
 //
 // It reads from `public/assets/case-studies/`, which is COMMITTED, rather than
 // from `compressed_assets/`, which is Praise's local export and is often
@@ -27,13 +27,14 @@ const SRC = 'public/assets/case-studies'
 const OUT = 'public/assets/gallery-tiles'
 
 /**
- * The widest a print is ever painted is ~320 CSS px -- a hero on the collage
- * ball -- and the wall now draws every print at ~210. 640 covers both on a 2x
- * screen; at 300, and then 480, they were visibly soft on a retina display.
- * The quality comes down to pay for most of the extra pixels: a 2x image is
- * shown at half size, which hides what 60 gives up against 74.
+ * Two sizes of every print. The infinite wall draws a print at about 400 CSS
+ * px, so 480 covers an ordinary screen and 960 a dense one; the tile's srcset
+ * lets the browser take only the one it needs, so a 1x screen never pays for
+ * the retina set. The quality comes down on the large one to pay for its
+ * pixels: shown at half size, it hides what 60 gives up against 74.
  */
-const TILE_W = 640
+const TILE_W = 480
+const TILE_W_2X = 960
 
 /**
  * The curated keys, read out of content/gallery.ts rather than duplicated.
@@ -68,7 +69,7 @@ const candidates = (key) => [
 ]
 
 // Emptied first, so removing a key from the list removes its file too. Without
-// this the pool only ever grows, and a tile dropped from the globe goes on
+// this the pool only ever grows, and a tile dropped from the wall goes on
 // shipping in the repository for the next person to wonder about.
 await rm(OUT, { recursive: true, force: true })
 
@@ -95,55 +96,6 @@ async function trimCanvas(source) {
   return kept >= KEEP ? data : await whole.toBuffer()
 }
 
-/**
- * How much colour a print carries: mean HSV saturation over a 32x32 sample.
- *
- * The collage spends it. A board that is mostly white UI on white canvas reads
- * as a pale slab on the ball, so the layout gives those the small tier and
- * keeps them apart, and gives the hero spots to the prints with the most
- * colour -- which is a judgement that belongs to the pixels, not to a list
- * someone has to remember to update.
- */
-async function saturation(file) {
-  const data = await sharp(file).resize(32, 32, { fit: 'fill' }).removeAlpha().raw().toBuffer()
-  let sum = 0
-  for (let i = 0; i < data.length; i += 3) {
-    const max = Math.max(data[i], data[i + 1], data[i + 2])
-    const min = Math.min(data[i], data[i + 1], data[i + 2])
-    sum += max ? (max - min) / max : 0
-  }
-  return Math.round((sum / (data.length / 3)) * 100) / 100
-}
-
-/**
- * How sharp a print reads: the variance of its Laplacian at 320px wide.
- *
- * A soft source -- a holographic gradient, a blurred photograph -- looks out
- * of focus the moment it is drawn large, so the layout keeps soft prints off
- * the hero spots and out of the body tier however much colour they carry.
- */
-async function crispness(file) {
-  const data = await sharp(file)
-    .resize(320)
-    .greyscale()
-    .convolve({ width: 3, height: 3, kernel: [0, 1, 0, 1, -4, 1, 0, 1, 0] })
-    .raw()
-    .toBuffer()
-  let mean = 0
-  for (const v of data) mean += v
-  mean /= data.length
-  let variance = 0
-  for (const v of data) variance += (v - mean) ** 2
-  return Math.round(variance / data.length)
-}
-
-/** Mean brightness, 0-1. A dark print seen edge-on at a pole is a smudge on
- *  the ball's outline, so the layout keeps dark prints off the caps. */
-async function luminance(file) {
-  const { channels } = await sharp(file).greyscale().stats()
-  return Math.round((channels[0].mean / 255) * 100) / 100
-}
-
 const tiles = {}
 
 for (const key of await curatedKeys()) {
@@ -160,19 +112,23 @@ for (const key of await curatedKeys()) {
   if (!source) throw new Error(`gallery-tiles: no file for "${key}"`)
 
   const out = join(OUT, `${key}.webp`)
+  const out2x = join(OUT, `${key}@2x.webp`)
   await mkdir(dirname(out), { recursive: true })
-  const { width, height } = await sharp(await trimCanvas(source))
+  const board = await trimCanvas(source)
+  const { width, height } = await sharp(board)
     .resize({ width: TILE_W, withoutEnlargement: true })
-    .webp({ quality: 60 })
+    .webp({ quality: 72 })
     .toFile(out)
+  await sharp(board)
+    .resize({ width: TILE_W_2X, withoutEnlargement: true })
+    .webp({ quality: 60 })
+    .toFile(out2x)
 
   tiles[key] = {
     src: `/${out.replace('public/', '')}`,
+    src2x: `/${out2x.replace('public/', '')}`,
     width,
     height,
-    sat: await saturation(out),
-    crisp: await crispness(out),
-    lum: await luminance(out),
   }
 }
 
@@ -183,7 +139,7 @@ const body = Object.entries(tiles)
 await writeFile(
   'content/gallery.generated.ts',
   `// GENERATED by scripts/gallery-tiles.mjs -- do not edit.\n` +
-    `// Thumbnails for the globe gallery. Dimensions are measured off the files,\n` +
+    `// Prints for the infinite gallery. Dimensions are measured off the files,\n` +
     `// so a tile's aspect ratio is never guessed.\n` +
     `export const TILE_ART = {\n${body}\n} as const;\n`,
 )
