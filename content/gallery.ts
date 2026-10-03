@@ -3,7 +3,7 @@ import { TILE_ART } from "./gallery.generated";
 import { mediaAnchor } from "@/lib/anchors";
 
 /**
- * The globe gallery's pool: the product UI Praise wants judged on sight.
+ * The infinite gallery's pool: the product UI Praise wants judged on sight.
  *
  * Clean interface and finished brand work, and nothing else. A tile is read at
  * about 150u across, which is the whole editorial rule here: at that size a
@@ -67,8 +67,10 @@ export type GalleryTile = {
   /** `<slug>/<name>`, the same key MEDIA and LOOPS use. */
   key: string;
   slug: string;
-  /** The resized thumbnail, not the article's artwork. */
+  /** The resized print, not the article's artwork: 480px wide... */
   src: string;
+  /** ...and 960px, for dense screens. */
+  src2x: string;
   width: number;
   height: number;
   alt: string;
@@ -85,6 +87,7 @@ const describe = (key: string) => {
     key,
     slug: key.split("/")[0],
     src: art.src,
+    src2x: art.src2x,
     width: art.width,
     height: art.height,
     alt: media.alt,
@@ -96,7 +99,7 @@ const describe = (key: string) => {
  * Round-robin across the studies rather than study by study.
  *
  * PassportMonie alone is seventeen of the thirty-seven, so in source order the
- * near side of the globe is one project for half a rotation and the gallery
+ * first screen of the wall is one project and the gallery
  * reads as a single case study rather than as a body of work. Dealing one tile
  * from each study in turn puts five clients in the first handful of positions,
  * which is the whole reason the gallery exists.

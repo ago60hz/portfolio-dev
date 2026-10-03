@@ -3,6 +3,7 @@
 import { Fragment, useEffect, useRef, useState } from "react";
 import { motion } from "motion/react";
 import { SLOW_DOWN, DURATION, beat } from "@/lib/motion";
+import { bookViewSlot } from "./Reveal";
 
 /**
  * A heading that masks in from below, a word at a time.
@@ -47,6 +48,7 @@ export function MaskWords({
 }) {
   const ref = useRef<HTMLElement>(null);
   const [shown, setShown] = useState(false);
+  const [start, setStart] = useState(0);
 
   useEffect(() => {
     if (shown) return;
@@ -56,12 +58,28 @@ export function MaskWords({
     // Window, and the window is never the scroll container here.
     const root = document.querySelector<HTMLElement>("[data-study-scroll]");
     const io = new IntersectionObserver(
-      ([e]) => e.isIntersecting && setShown(true),
+      ([e]) => {
+        if (!e.isIntersecting) return;
+        io.disconnect();
+        // Takes its turn in the page's queue, and holds it for half the line:
+        // whatever follows starts once the heading is well under way, not
+        // on top of its first word.
+        const words = el.textContent?.split(/\s+/).filter(Boolean).length ?? 1;
+        bookViewSlot(
+          el,
+          0,
+          (d) => {
+            setStart(d);
+            setShown(true);
+          },
+          Math.max(beat(2), (words * step) / 2),
+        );
+      },
       { root, rootMargin: "0px 0px -10% 0px" },
     );
     io.observe(el);
     return () => io.disconnect();
-  }, [shown]);
+  }, [shown, step]);
 
   const words = text.split(/\s+/).filter(Boolean);
 
@@ -80,7 +98,7 @@ export function MaskWords({
               transition={{
                 duration: DURATION.enter,
                 ease: SLOW_DOWN,
-                delay: shown ? i * step : 0,
+                delay: shown ? start + i * step : 0,
               }}
             >
               {word}

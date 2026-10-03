@@ -31,7 +31,7 @@ export function StudyImage({
   priority?: boolean;
 }) {
   return (
-    // The id the globe gallery's tiles point at. Derived from the file rather
+    // The id the infinite gallery's tiles point at. Derived from the file rather
     // than authored, so a tile and the picture it shows can never drift apart
     // -- see lib/anchors.ts. scroll-mt matches the headings', so an arrival
     // lands with the same breathing room a rail jump does.

@@ -73,7 +73,7 @@ export default async function StudyPage({ params }: Params) {
         </div>
       </div>
 
-      {/* A tile in the globe gallery links to its own picture, and the
+      {/* A tile in the infinite gallery links to its own picture, and the
           fragment has to be honoured by hand: the document is not the
           scroller. */}
       <StudyHashScroll />

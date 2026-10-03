@@ -115,7 +115,19 @@ export const metamask: CaseStudy = {
     },
     {
       type: "prose",
-      text: "Every point of delegation completion is more people actually spending with the card. The Phase 2 multichain expansion carried the same abstraction to Solana and Base without fragmenting into a separate flow per chain: one interface, several chains, no additional cognitive load.",
+      text: "Every point of delegation completion is more people actually spending with the card. The first pilot launches in the UK, EU and Latin America showed what that looks like in the first month:",
+    },
+    {
+      type: "metrics",
+      items: [
+        { value: "$1M+", label: "Spent on-chain in the first month" },
+        { value: "$25k+", label: "Daily cardholder spend, first month" },
+        { value: "50k+", label: "On-chain transactions, first month" },
+      ],
+    },
+    {
+      type: "prose",
+      text: "The Phase 2 multichain expansion carried the same abstraction to Solana and Base without fragmenting into a separate flow per chain: one interface, several chains, no additional cognitive load.",
     },
 
     { type: "heading", id: "reflection", railLabel: "Reflection", text: "Behavior informs design, and the best design is invisible" },

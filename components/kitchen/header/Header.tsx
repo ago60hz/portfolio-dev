@@ -6,7 +6,6 @@ import { useEntranceReady } from "@/hooks/useEntranceReady";
 import { useRevealProps } from "@/components/motion/Reveal";
 import { bootDelay } from "@/lib/motion";
 import { ContactMenu } from "./ContactMenu";
-import { GalleryToggle } from "./GalleryToggle";
 
 /**
  * The Window's top strip (1:193).
@@ -23,9 +22,10 @@ import { GalleryToggle } from "./GalleryToggle";
  * lets it repaint with the sidebar and the page ground on one clock instead of
  * needing a second rule of its own.
  *
- * The local clock that used to sit here is gone, replaced by the Gallery
- * switch: the design gives the strip one thing to say and one control, and two
- * readouts either side of a bullet read as a status bar.
+ * The strip says one thing and holds one control. The Gallery switch that
+ * used to sit beside the greeting is now the tag hanging off this strip's
+ * bottom rule (GalleryPull), which gives the greeting back the width it was
+ * truncating into on a phone.
  *
  * Height has a 32px floor because the type inside it does not scale with --u.
  */
@@ -63,10 +63,11 @@ export function Header() {
     <motion.div
       ref={ref}
       {...useRevealProps("slide-top", booted, bootDelay("header"))}
-      // Sticky, so the switch is always within reach. Below lg the room is
-      // taller than its Window and scrolls, and a strip that scrolled away
-      // with it took the only way out of the gallery along too. Above lg the
-      // scene fits its Window and this does nothing at all.
+      // Sticky, so the strip is always at the top of the Window. Below lg the
+      // room is taller than its Window and scrolls, and the gallery tag hangs
+      // from where this strip is, not from where the scroll left it -- it is
+      // pinned under the measured height on the assumption that the strip
+      // never moves. Above lg the scene fits its Window and this does nothing.
       className="sticky top-0 z-40 flex w-full shrink-0 items-center justify-between gap-2 bg-kitchen-surface"
       style={{
         minHeight: "max(var(--header-h), 32px)",
@@ -89,7 +90,6 @@ export function Header() {
         <p className="font-gochi truncate text-lead">
           Welcome to my Kitchen <span aria-hidden>&bull;</span>
         </p>
-        <GalleryToggle />
       </div>
 
       <ContactMenu />

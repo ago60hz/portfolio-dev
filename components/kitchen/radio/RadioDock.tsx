@@ -58,8 +58,8 @@ export function RadioDock() {
   const onStudy = pathname.startsWith("/work/");
   const ready = useEntranceReady();
   const reduced = usePrefersReducedMotion();
-  /** The globe gallery has taken the Window; the radio's slot went with it. */
-  const hidden = useKitchen((s) => s.globeOpen) && !onStudy;
+  /** The infinite gallery has taken the Window; the radio's slot went with it. */
+  const hidden = useKitchen((s) => s.infiniteOpen) && !onStudy;
   const isMobile = useIsMobile();
   /*
    * Below lg the wall gallery is not rendered, so there is no
@@ -299,7 +299,7 @@ export function RadioDock() {
             : `translate3d(${box.left}px, ${box.top}px, 0) scale(${scaleX}, ${scaleY})`,
         // The slot's top-left is what the anchor reports, so scale from it.
         transformOrigin: "0 0",
-        // The globe gallery replaces the room, and the radio's slot is part of
+        // The infinite gallery replaces the room, and the radio's slot is part of
         // the room. It is not unmounted -- doing that destroys the YouTube
         // iframe and the track with it -- only hidden and made unreachable,
         // on the surface's own clock so it leaves with the wall it sits on.

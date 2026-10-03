@@ -1,7 +1,6 @@
 import Image from "next/image";
 import { MaskWords } from "@/components/motion/MaskWords";
 import { Reveal } from "@/components/motion/Reveal";
-import { beat } from "@/lib/motion";
 import type { CaseStudy } from "@/content/case-studies";
 import { ToolText } from "./ToolText";
 
@@ -10,13 +9,15 @@ const DOTO = "font-doto tracking-[-0.04em]";
 
 function Meta({ label, value, slug }: { label: string; value?: string; slug?: string }) {
   if (!value) return null;
+  // The Reveal IS the field's group: a <dl> allows one div between it and
+  // its dt/dd, so a wrapper around this would break the list.
   return (
-    <div className="flex flex-col gap-2">
+    <Reveal on="view" kind="arrive" className="flex flex-col gap-2">
       <dt className={`${DOTO} text-fine text-kitchen-brown-deep`}>{label}</dt>
       <dd className="text-body leading-prose font-medium text-kitchen-ink">
         {slug ? <ToolText text={value} slug={slug} /> : value}
       </dd>
-    </div>
+    </Reveal>
   );
 }
 
@@ -79,7 +80,7 @@ export function StudyMasthead({ study }: { study: CaseStudy }) {
         </h1>
 
         {study.hook && (
-          <Reveal on="view" kind="arrive" delay={beat(2)}>
+          <Reveal on="view" kind="arrive">
             <p className="font-gochi text-lead leading-[1.18] text-pretty text-kitchen-brown-deep">
               {study.hook}
             </p>
@@ -87,14 +88,14 @@ export function StudyMasthead({ study }: { study: CaseStudy }) {
         )}
       </div>
 
-      <Reveal on="view" kind="arrive" delay={beat(4)}>
+      {/* Each field takes its own step in the queue, row by row, rather than
+          the four landing as one slab. */}
       <dl className="grid grid-cols-1 gap-x-2 gap-y-4 sm:grid-cols-2">
         <Meta label="Role" value={study.role} />
         <Meta label="Client" value={study.client} />
         <Meta label="Scope" value={study.scope} slug={study.slug} />
         <Meta label="Timeline" value={study.timeline} />
       </dl>
-      </Reveal>
     </header>
   );
 }
