@@ -95,9 +95,19 @@ export function useRevealProps(kind: RevealKind, shown: boolean, delay = 0) {
  */
 const VIEW_STEP = 0.12;
 let viewQueue = 0;
-let pending: { el: Element; own: number; go: (delay: number) => void }[] = [];
-function bookViewSlot(el: Element, own: number, go: (delay: number) => void) {
-  pending.push({ el, own, go });
+type Booking = { el: Element; own: number; go: (delay: number) => void; hold: number };
+let pending: Booking[] = [];
+/**
+ * `hold` is how long the slot keeps the queue: a heading writing itself in
+ * word by word holds it longer, so what follows waits for most of the line.
+ */
+export function bookViewSlot(
+  el: Element,
+  own: number,
+  go: (delay: number) => void,
+  hold = VIEW_STEP,
+) {
+  pending.push({ el, own, go, hold });
   if (pending.length > 1) return;
   requestAnimationFrame(() => {
     const batch = pending.sort((a, b) =>
@@ -105,9 +115,9 @@ function bookViewSlot(el: Element, own: number, go: (delay: number) => void) {
     );
     pending = [];
     const now = performance.now() / 1000;
-    for (const { own, go } of batch) {
+    for (const { own, go, hold } of batch) {
       const slot = Math.max(now, viewQueue);
-      viewQueue = slot + VIEW_STEP;
+      viewQueue = slot + hold;
       // An authored delay is a floor, not an addition: the masthead's beats
       // already step, and stacking them on the queue would double the wait.
       go(Math.max(own, slot - now));
